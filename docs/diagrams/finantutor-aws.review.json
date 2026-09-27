@@ -1,0 +1,43 @@
+{
+  "diagram_type": "architecture",
+  "artifact": {
+    "sha256": "2a11c2e522a28e8de2a0353a95dc467f8641035149c1a57f883e742b87aec417",
+    "bytes": 814586
+  },
+  "specification": {
+    "sha256": "006e1536870cc6394c9665e877d71f612896a28f2cba4af151a00f54aecc644e",
+    "bytes": 5474
+  },
+  "validation": "9/9 showcase, 0 errors, 0 warnings",
+  "browser_evidence": "passed",
+  "visual_review": "passed",
+  "correction_rounds": 0,
+  "review_scope": "HTML READ/Still; capturas light y dark a 1440×900 y 2048×1320; mediciones de navegador también a 1600×1000 y 1920×1080.",
+  "observations": [
+    "Sin cruces de relaciones ni etiquetas sobre nodos ajenos.",
+    "Contenido completo sin scroll horizontal o vertical en cuatro tamaños de escritorio.",
+    "Composición equilibrada; las tarjetas explican orquestación, persistencia y operación."
+  ],
+  "drawio": {
+    "sha256": "186722f03331dd622411a3042e8e9ee16b5b31f29289f9a4a5a59780017291e3",
+    "bytes": 59712,
+    "pages": 4,
+    "xml_validation": "passed",
+    "aws_stencils_validation": "passed",
+    "aws_icons": [
+      "bedrock",
+      "cloudfront",
+      "cloudwatch",
+      "cognito",
+      "dynamodb",
+      "ecr",
+      "eventbridge",
+      "identity_and_access_management",
+      "lambda",
+      "s3",
+      "step_functions"
+    ],
+    "stencils_source": "https://github.com/jgraph/drawio/blob/dev/src/main/webapp/stencils/aws4.xml",
+    "visual_review": "not performed in Draw.io editor"
+  }
+}

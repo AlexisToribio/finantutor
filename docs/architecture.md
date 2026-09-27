@@ -1,5 +1,7 @@
 # Arquitectura y orquestación
 
+[Abrir arquitectura AWS interactiva](diagrams/finantutor-aws.html) · [Descargar Draw.io editable](diagrams/finantutor-aws.drawio) · [Fuentes y comprobaciones de los diagramas](diagrams/README.md).
+
 ## Decisión: un agente con herramientas
 
 El objetivo es aprender una asignatura con un estilo docente consistente. Un TutorAgent mantiene la conversación, decide cuándo consultar el material y explica los resultados. La recuperación y el cálculo tienen contratos acotados; no necesitan razonamiento autónomo de otros agentes. Añadir especialistas desde el inicio aumentaría llamadas al modelo, latencia y coordinación sin demostrar una mejora pedagógica.

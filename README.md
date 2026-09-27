@@ -20,7 +20,7 @@ agents/    Python + Strands; un TutorAgent y herramientas
 ingest/   Python + pypdf; preparación determinista de documentos
 ```
 
-Cada componente conserva `terraform/modules/` y `terraform/environments/{dev,prod}/`, siguiendo Educagent. [Arquitectura y decisiones](docs/architecture.md), [contrato API](docs/api.md), [operación AWS](docs/deployment.md).
+Cada componente conserva `terraform/modules/` y `terraform/environments/{dev,prod}/`, siguiendo Educagent. [Arquitectura y decisiones](docs/architecture.md), [diagramas HTML y Draw.io](docs/diagrams/README.md), [contrato API](docs/api.md), [operación AWS](docs/deployment.md).
 
 ## Arranque local
 
@@ -84,4 +84,4 @@ terraform fmt -check -recursive .
 
 [Resultados y alcance de las comprobaciones](docs/validation.md).
 
-Para detener los procesos locales, ejecuta `scripts/down.sh`. Para empaquetar: `bash scripts/package.sh`. Para AWS, sigue [la guía de despliegue](docs/deployment.md): `scripts/deploy.sh dev` crea el bucket de estado propio si hace falta y despliega los componentes en orden; `scripts/destroy.sh dev` destruye el entorno, conservando el bucket de estado. La cuenta se obtiene de las credenciales AWS activas. Ninguno de esos comandos fue ejecutado durante esta entrega.
+Para detener los procesos locales, ejecuta `scripts/down.sh`. Para empaquetar todos los componentes: `bash scripts/package.sh`. Para desplegar todo en AWS, prepara las credenciales y dependencias indicadas en [la guía de despliegue](docs/deployment.md), confirma la cuenta con `aws sts get-caller-identity` y ejecuta desde la raíz `./scripts/deploy.sh dev`. El script crea o configura el bucket de estado y aplica los stacks en orden; usa `./scripts/deploy.sh prod` para producción. `./scripts/destroy.sh dev` destruye los recursos del entorno y conserva el bucket de estado.

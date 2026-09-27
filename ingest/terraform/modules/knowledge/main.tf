@@ -70,7 +70,20 @@ resource "aws_bedrockagent_data_source" "corpus" {
   data_source_configuration {
     type = "MANAGED_KNOWLEDGE_BASE_CONNECTOR"
     managed_knowledge_base_connector_configuration {
-      connector_parameters = jsonencode({ type = "S3", version = "1", connectionConfiguration = { bucketName = aws_s3_bucket.documents["corpus"].id, bucketOwnerAccountId = data.aws_caller_identity.current.account_id } })
+      # Bedrock fills these defaults and returns this canonical key order.
+      # The provider models connector_parameters as a JSON string, so preserve
+      # that serialization to keep its post-create state consistent.
+      connector_parameters = trimspace(<<-JSON
+        {"type":"S3","connectionConfiguration":{"bucketName":"${aws_s3_bucket.documents["corpus"].id}","bucketOwnerAccountId":"${data.aws_caller_identity.current.account_id}"},"filterConfiguration":{"maxFileSizeInMegaBytes":"500"},"aclEnabled":false,"version":"1"}
+        JSON
+      )
+
+      # Preserve Bedrock's managed-connector behavior and plan it explicitly.
+      media_extraction_configuration {
+        image_extraction_configuration {
+          image_extraction_status = "ENABLED"
+        }
+      }
     }
   }
 }

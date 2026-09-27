@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/home/alexis/agents/finantutor/docs/diagrams/finantutor-aws.architecture.json",
+  "output": "/home/alexis/agents/finantutor/docs/diagrams/finantutor-aws.html",
+  "specification": {
+    "sha256": "006e1536870cc6394c9665e877d71f612896a28f2cba4af151a00f54aecc644e",
+    "bytes": 5474
+  },
+  "artifact": {
+    "sha256": "2a11c2e522a28e8de2a0353a95dc467f8641035149c1a57f883e742b87aec417",
+    "bytes": 814586
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  }
+}

@@ -14,7 +14,7 @@ Fecha: 2026-09-27.
 
 La prueba del entrypoint utiliza el servidor real del SDK con generación simulada. Las pruebas de recuperación cloud utilizan Stubber, sin acceso a AWS. El recorrido del navegador utiliza una API simulada; la prueba del BFF sí extrae un PDF real mediante el CLI Python. Las [capturas de escritorio](screenshots/chat-desktop.png) y [móvil](screenshots/chat-mobile.png) contienen una respuesta ilustrativa de la prueba, no una respuesta de Bedrock.
 
-No se ejecutaron Docker Buildx, Terraform apply, autenticación Cognito real, sincronización de Knowledge Base ni invocación de modelos. La comprobación con tus materiales y credenciales AWS vigentes queda pendiente del primer arranque/despliegue.
+No se ejecutaron despliegues Terraform, autenticación Cognito real, sincronización de Knowledge Base ni invocación de modelos. La comprobación con tus materiales y credenciales AWS vigentes queda pendiente del primer arranque/despliegue.
 
 Para ejecutar los recorridos de navegador en tu máquina:
 

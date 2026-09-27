@@ -19,8 +19,3 @@ variable "model_id" {
   description = "Bedrock tutor model or inference profile"
   default     = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
 }
-variable "container_image_uri" {
-  type        = string
-  description = "ARM64 ECR image URI; null creates prerequisites only"
-  default     = null
-}

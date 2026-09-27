@@ -1,30 +1,78 @@
 # Despliegue AWS
 
-## Requisitos
+## Desplegar todo el proyecto
 
-AWS CLI autenticada, acceso al modelo de Bedrock, Terraform >= 1.10, Docker Buildx con ARM64, Node 24/pnpm y Python/uv. El proveedor AWS está fijado a 6.65.0. La arquitectura se preparó para `us-east-1`; verifica la disponibilidad de Managed Knowledge Bases y del modelo antes de usar otra región.
+### Requisitos
 
-`scripts/deploy.sh` crea un bucket S3 privado de estado Terraform por entorno: `finantutor-terraform-state-dev` o `finantutor-terraform-state-prod`. Los nombres de bucket S3 son globales; el despliegue fallará con un mensaje claro si el nombre ya pertenece a otra cuenta. Habilita versionado, cifrado, bloqueo de acceso público y transporte TLS. Necesitas credenciales AWS activas y permisos para identificar la cuenta y crear/configurar buckets S3; el script obtiene el ID con STS para comprobar propiedad. Esto no habilita automáticamente el acceso a modelos de Bedrock.
+- AWS CLI con credenciales activas y permisos para los recursos del proyecto. Para AWS SSO, inicia sesión antes del despliegue.
+- Terraform 1.10 o superior, Node.js 24 o superior, pnpm 9.7.1, Python 3.12, `uv`, `zip` y el comando `agentcore`.
+- Acceso habilitado en Bedrock para los modelos configurados. El despliegue usa `us-east-1` por defecto; comprueba la disponibilidad de Bedrock y Knowledge Bases antes de elegir otra región.
+
+Este repositorio usa la interfaz Python del Starter Toolkit (`agentcore configure` con `--deployment-type direct_code_deploy`). Si aún no tienes esa interfaz, instálala con `uv tool install --python 3.12 bedrock-agentcore-starter-toolkit`. AWS ahora recomienda el nuevo CLI npm `@aws/agentcore`; no lo sustituyas directamente porque sus comandos no son los que invocan estos scripts. Consulta el [aviso y guía de migración de AWS](https://github.com/aws/bedrock-agentcore-starter-toolkit) antes de cambiar de CLI.
+
+Desde la raíz del monorepo, instala las dependencias y prepara los entornos Python:
 
 ```bash
-scripts/deploy.sh dev
+pnpm install --frozen-lockfile
+uv sync --project agents --frozen
+uv sync --project ingest --frozen
 ```
 
-Para otra región: `scripts/deploy.sh dev --region us-west-2`. También puedes ejecutar `agents/.venv/bin/python scripts/deploy.py dev --region us-east-1`; esta forma manual conserva confirmación por cada plan, mientras que el wrapper aplica los planes automáticamente.
+Si usas AWS SSO, inicia sesión y selecciona el perfil:
 
-El script empaqueta las Lambdas y ejecuta en orden:
+```bash
+aws sso login --profile TU_PERFIL
+export AWS_PROFILE=TU_PERFIL
+```
 
-1. BFF inicial: DynamoDB, Cognito y rol, si todavía no existen.
-2. Ingesta: buckets, KB, conector y workflow.
-3. Runtime inicial: ECR, rol y memoria, si todavía no existen.
-4. Construcción ARM64 y publicación de una imagen con etiqueta única; creación/actualización de AgentCore Runtime.
-5. Lambda BFF con ARN del runtime y bucket de documentos.
-6. CloudFront y bucket SPA; CORS de documentos restringido al dominio publicado.
-7. Build con configuración Cognito, publicación en S3 e invalidación de CloudFront.
+Verifica la identidad AWS activa antes de crear recursos:
 
-El comando Python directo muestra los planes y pide escribir `yes` tras revisar cada plan. `scripts/deploy.sh` aplica automáticamente los planes para completar el despliegue en un solo paso. Los parámetros cruzados se conservan en `deployment.auto.tfvars.json` por componente; no los borres entre despliegues: son necesarios para mantener los recursos opcionales. Los ZIP se construyen con dependencias fijadas; la Lambda Python se empaqueta para Python 3.12 Linux x86_64. El runtime se construye para Linux ARM64. Docker no fue ejecutado durante la entrega.
+```bash
+aws sts get-caller-identity
+```
 
-Crea un usuario en el pool Cognito indicado al final mediante AWS Console o `aws cognito-idp admin-create-user`; el primer acceso permite establecer una contraseña nueva. No hay registro público. En `prod` se utilizan nombres y estados separados; antes de ponerlo a disposición de otras personas, añade alarmas, presupuestos y tu política de retención.
+Ejecuta el despliegue completo desde la raíz:
+
+```bash
+./scripts/deploy.sh dev
+```
+
+Para desplegar `prod`, usa `./scripts/deploy.sh prod`. Para cambiar la región: `./scripts/deploy.sh dev --region us-west-2`.
+
+El script raíz crea o configura el bucket de estado Terraform `finantutor-terraform-state-dev` o `finantutor-terraform-state-prod`, y luego coordina los scripts locales de cada proyecto. El bucket S3 tiene nombre global; si ya pertenece a otra cuenta, el despliegue se detiene. Terraform aplica los cambios automáticamente, sin pedir confirmación, en este orden:
+
+1. Backend bootstrap: crea la tabla DynamoDB y Cognito.
+2. Ingesta: crea buckets de documentos, Knowledge Base, conector y workflow.
+3. Agents: crea el rol y Memory con Terraform, y publica el runtime con AgentCore.
+4. Backend completo: conecta el runtime y el bucket de documentos a la Lambda.
+5. Frontend: crea CloudFront y el bucket SPA, compila, publica los archivos e invalida la distribución.
+6. Ingesta: actualiza CORS para aceptar el dominio del frontend.
+
+Al terminar, el script muestra la URL del sitio y el ID del pool Cognito. Crea usuarios desde la consola de Cognito o con `aws cognito-idp admin-create-user`, usando ese ID. No hay registro público.
+
+Ejemplo para invitar un usuario por correo:
+
+```bash
+POOL_ID="$(terraform -chdir=backend/terraform/environments/dev output -raw cognito_pool_id)"
+aws cognito-idp admin-create-user \
+  --user-pool-id "$POOL_ID" \
+  --username docente@escuela.edu \
+  --user-attributes Name=email,Value=docente@escuela.edu Name=email_verified,Value=true \
+  --region us-east-1
+```
+
+También puedes ejecutar un componente cuando sus dependencias ya estén desplegadas. Para reproducir el flujo completo manualmente, conserva este orden y repite ingesta al final para actualizar CORS:
+
+```bash
+./backend/scripts/deploy.sh dev --bootstrap
+./ingest/scripts/deploy.sh dev
+./agents/scripts/deploy.sh dev
+./backend/scripts/deploy.sh dev
+./frontend/scripts/deploy.sh dev
+./ingest/scripts/deploy.sh dev
+```
+
+Los valores compartidos entre stacks se guardan en `deployment.auto.tfvars.json` dentro de cada entorno. Los scripts empaquetan sus artefactos; la Lambda de ingesta se construye para Python 3.12 Linux x86_64. AgentCore publica el código mediante `direct_code_deploy`, sin Docker ni una imagen ECR. En `prod` se utilizan nombres y estados separados; antes de habilitarlo para otras personas, configura alarmas, presupuestos y retención de datos.
 
 ## Operación y límites
 
@@ -34,9 +82,6 @@ Crea un usuario en el pool Cognito indicado al final mediante AWS Console o `aws
 - Los originales se descargan con URL firmada temporal tras comprobar la propiedad del curso. La API transmite PDFs directamente a S3, fuera del límite de cuerpo de Lambda.
 - La disponibilidad de servicios, permisos organizativos, acceso al modelo y costes deben comprobarse en tu cuenta. La validación Terraform comprueba la configuración, no ejecuta las APIs AWS.
 - El historial durable está en DynamoDB; Memory contiene contexto transitorio. Un fallo tras invocar el modelo puede haber creado eventos de Memory aunque el BFF no haya confirmado una respuesta: la UI conserva la pregunta para reintentar.
-
-No se ejecutó `terraform apply`, no se publicaron imágenes y no se llamó a un modelo de Bedrock en esta entrega.
-
 
 ## Iniciar y eliminar
 
@@ -48,4 +93,50 @@ Para eliminar automáticamente todos los recursos y datos de un entorno AWS, eje
 
 Sustituye `dev` por `prod` solo cuando quieras eliminar ese entorno. El script obtiene la cuenta desde las credenciales activas y deduce el bucket y el estado del entorno seleccionado. Conserva el bucket de estado para permitir futuros despliegues. Para eliminar también dicho bucket, al final y después de destruir los stacks, usa `scripts/destroy.sh dev --including-state`. Esa opción borra permanentemente el estado Terraform.
 
-El teardown pausa disparadores, detiene workflows e ingestas activas, elimina CloudFront y la API, espera 10 minutos y 30 segundos para que expiren las URLs de carga emitidas, borra todas las versiones S3 y los marcadores, elimina imágenes ECR y destruye los stacks Terraform en orden inverso. El borrado de documentos, conversaciones y progreso es irreversible. No guardes datos que quieras retener solo dentro de este entorno.
+La raíz delega la destrucción en los proyectos en orden inverso: frontend, backend, agents e ingest. Cada uno limpia sus recursos antes de destruir su stack; ingest pausa los disparadores, detiene workflows e ingestas activas, espera 630 segundos para que expiren las URLs de carga y vacía las versiones S3. Agents elimina el runtime AgentCore por su API y limpia ECR solo si queda un repositorio de un despliegue antiguo con contenedor. El borrado de documentos, conversaciones y progreso es irreversible. No guardes datos que quieras retener solo dentro de este entorno.
+
+## Recuperar una creación fallida del conector de Bedrock
+
+Si Terraform informa `Provider produced inconsistent result after apply` en `aws_bedrockagent_data_source.corpus`, comprueba el estado antes de repetir el despliegue. Bedrock completa valores predeterminados de `connector_parameters` y devuelve la configuración de extracción de imágenes. Finantutor declara esos valores y conserva el orden JSON devuelto por Bedrock porque este atributo se representa como texto; el proveedor tiene un [problema registrado sobre diferencias de orden JSON en este recurso](https://github.com/hashicorp/terraform-provider-aws/issues/50065). El ejemplo vigente del proveedor AWS muestra los mismos parámetros [en su documentación](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/bedrockagent_data_source).
+
+Primero renueva la sesión AWS si hace falta y comprueba que corresponde a la cuenta correcta:
+
+```bash
+aws sso login
+aws sts get-caller-identity
+```
+
+Mira si Terraform alcanzó a guardar el recurso:
+
+```bash
+terraform -chdir=ingest/terraform/environments/dev state list
+```
+
+Si aparece `module.stack.aws_bedrockagent_data_source.corpus`, crea un plan nuevo y aplícalo después de revisarlo:
+
+```bash
+terraform -chdir=ingest/terraform/environments/dev plan -out=deployment.tfplan
+terraform -chdir=ingest/terraform/environments/dev apply deployment.tfplan
+```
+
+Si no aparece, busca si Bedrock alcanzó a crear el conector:
+
+```bash
+KB_ID="$(terraform -chdir=ingest/terraform/environments/dev output -raw knowledge_base_id)"
+aws bedrock-agent list-data-sources \
+  --knowledge-base-id "$KB_ID" \
+  --region us-east-1 \
+  --query "dataSourceSummaries[?name=='finantutor-dev-corpus'].{id:dataSourceId,status:status}" \
+  --output table
+```
+
+Si ese conector existe y está ausente del estado, impórtalo con el par `ID_DEL_CONECTOR,ID_DE_KB` que devolvió AWS. Esto evita que el siguiente `apply` intente crear un recurso con el mismo nombre:
+
+```bash
+terraform -chdir=ingest/terraform/environments/dev import \
+  module.stack.aws_bedrockagent_data_source.corpus \
+  "ID_DEL_CONECTOR,$KB_ID"
+terraform -chdir=ingest/terraform/environments/dev plan
+```
+
+Si AWS no devuelve el conector, vuelve a ejecutar el despliegue corregido. Después de resolver la creación de `ingest` por cualquiera de estas vías, ejecuta `scripts/deploy.sh dev` para continuar los componentes posteriores. Revisa el plan antes de aplicarlo; usa `prod` y su KB correspondiente solo si el error ocurrió en ese entorno. No borres el estado ni el conector como método de recuperación.
