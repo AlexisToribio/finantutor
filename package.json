@@ -1,0 +1,21 @@
+{
+  "name": "finantutor",
+  "private": true,
+  "packageManager": "pnpm@9.7.1",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev:frontend": "pnpm --filter frontend dev",
+    "dev:backend": "pnpm --filter backend dev",
+    "build": "pnpm -r build",
+    "test": "pnpm --filter backend test",
+    "test:ui": "playwright test",
+    "format": "prettier --write \"backend/{src,test}/**/*.ts\" \"frontend/src/**/*.{ts,tsx,css}\" \"*.{json,yaml,ts}\"",
+    "format:check": "prettier --check \"backend/{src,test}/**/*.ts\" \"frontend/src/**/*.{ts,tsx,css}\" \"*.{json,yaml,ts}\""
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "prettier": "^3.9.9"
+  }
+}

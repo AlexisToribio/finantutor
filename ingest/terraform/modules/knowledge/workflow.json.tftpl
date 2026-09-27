@@ -1,0 +1,171 @@
+{
+  "StartAt": "Prepare",
+  "TimeoutSeconds": 7200,
+  "States": {
+    "Prepare": {
+      "Type": "Task",
+      "Resource": "${worker_arn}",
+      "Parameters": {
+        "action": "prepare",
+        "input.$": "$"
+      },
+      "TimeoutSeconds": 200,
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.SdkClientException",
+            "ConflictException",
+            "ThrottlingException"
+          ],
+          "IntervalSeconds": 20,
+          "BackoffRate": 1.5,
+          "MaxAttempts": 12,
+          "JitterStrategy": "FULL"
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "MarkFailed"
+        }
+      ],
+      "Next": "Prepared"
+    },
+    "Prepared": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.already_ready",
+          "BooleanEquals": true,
+          "Next": "Done"
+        }
+      ],
+      "Default": "StartSync"
+    },
+    "StartSync": {
+      "Type": "Task",
+      "Resource": "${worker_arn}",
+      "Parameters": {
+        "action": "start",
+        "input.$": "$"
+      },
+      "TimeoutSeconds": 200,
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.SdkClientException",
+            "ConflictException",
+            "ThrottlingException"
+          ],
+          "IntervalSeconds": 20,
+          "BackoffRate": 1.5,
+          "MaxAttempts": 12,
+          "JitterStrategy": "FULL"
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "MarkFailed"
+        }
+      ],
+      "Next": "Wait"
+    },
+    "Wait": {
+      "Type": "Wait",
+      "Seconds": 20,
+      "Next": "Poll"
+    },
+    "Poll": {
+      "Type": "Task",
+      "Resource": "${worker_arn}",
+      "Parameters": {
+        "action": "poll",
+        "input.$": "$"
+      },
+      "TimeoutSeconds": 200,
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.SdkClientException",
+            "ConflictException",
+            "ThrottlingException"
+          ],
+          "IntervalSeconds": 20,
+          "BackoffRate": 1.5,
+          "MaxAttempts": 12,
+          "JitterStrategy": "FULL"
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "MarkFailed"
+        }
+      ],
+      "Next": "Status"
+    },
+    "Status": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.job_status",
+          "StringEquals": "COMPLETE",
+          "Next": "Finish"
+        },
+        {
+          "Variable": "$.job_status",
+          "StringEquals": "FAILED",
+          "Next": "MarkFailed"
+        },
+        {
+          "Variable": "$.job_status",
+          "StringEquals": "STOPPED",
+          "Next": "MarkFailed"
+        }
+      ],
+      "Default": "Wait"
+    },
+    "MarkFailed": {
+      "Type": "Pass",
+      "Result": true,
+      "ResultPath": "$.failed",
+      "Next": "Finish"
+    },
+    "Finish": {
+      "Type": "Task",
+      "Resource": "${worker_arn}",
+      "Parameters": {
+        "action": "finish",
+        "input.$": "$"
+      },
+      "TimeoutSeconds": 60,
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.SdkClientException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3
+        }
+      ],
+      "End": true
+    },
+    "Done": {
+      "Type": "Succeed"
+    }
+  }
+}

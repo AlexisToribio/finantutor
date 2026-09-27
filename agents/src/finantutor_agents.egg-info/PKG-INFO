@@ -1,0 +1,9 @@
+Metadata-Version: 2.4
+Name: finantutor-agents
+Version: 0.1.0
+Requires-Python: >=3.12
+Requires-Dist: strands-agents>=1.0
+Requires-Dist: bedrock-agentcore>=1.0.3
+Requires-Dist: boto3>=1.43.64
+Requires-Dist: python-dotenv>=1.0
+Requires-Dist: pydantic>=2.0
