@@ -6,13 +6,19 @@ from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from dotenv import load_dotenv
 
 from finantutor.infrastructure.agent import stream_tutor
-from finantutor.infrastructure.retrieval import LocalRetriever, ManagedKnowledgeRetriever
+from finantutor.infrastructure.retrieval import LocalRetriever, S3VectorRetriever
 
 load_dotenv(Path(__file__).with_name(".env"))
 app = BedrockAgentCoreApp()
+REGION = os.getenv("AWS_REGION", "us-east-1")
 retriever = (
-    ManagedKnowledgeRetriever(os.environ["KNOWLEDGE_BASE_ID"], os.getenv("AWS_REGION", "us-east-1"))
-    if os.getenv("KNOWLEDGE_BASE_ID")
+    S3VectorRetriever(
+        vector_bucket=os.environ["VECTOR_BUCKET"],
+        vector_index=os.environ["VECTOR_INDEX"],
+        embedding_model_id=os.getenv("EMBEDDING_MODEL_ID", "amazon.titan-embed-text-v2:0"),
+        region=REGION,
+    )
+    if os.getenv("VECTOR_BUCKET") and os.getenv("VECTOR_INDEX")
     else LocalRetriever(Path(os.getenv("LOCAL_DATA_DIR", "../.local")).resolve())
 )
 
@@ -35,4 +41,4 @@ async def invoke(payload: dict, context):
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0" if os.getenv("KNOWLEDGE_BASE_ID") else "127.0.0.1")
+    app.run(host="0.0.0.0" if os.getenv("VECTOR_BUCKET") else "127.0.0.1")

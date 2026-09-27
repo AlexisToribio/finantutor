@@ -13,4 +13,3 @@ class Page:
 class Document:
     checksum: str
     pages: list[Page]
-    outline: list[dict[str, str]]

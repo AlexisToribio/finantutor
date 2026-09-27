@@ -1,14 +1,4 @@
 import { z } from "zod";
-export const unitSchema = z.object({
-  title: z.string().trim().min(1).max(200),
-  objective: z.string().max(2000),
-  source_page: z.string().max(20).optional(),
-});
-export const activitySchema = z.object({
-  topic: z.string().min(1).max(200),
-  outcome: z.enum(["studied", "practiced", "needs_review"]),
-  evidence: z.string().min(1).max(500),
-});
 export const citationSchema = z.object({
   source_id: z.string().regex(/^S\d+$/),
   material_id: z.uuid(),
@@ -25,24 +15,16 @@ export const eventSchema = z.discriminatedUnion("type", [
     type: z.literal("done"),
     reply: z.string().min(1).max(80000),
     citations: z.array(citationSchema).max(72),
-    activities: z.array(activitySchema).max(12),
     message_id: z.string().optional(),
   }),
 ]);
 export type AgentEvent = z.infer<typeof eventSchema>;
-export type Unit = z.infer<typeof unitSchema>;
-export type Activity = z.infer<typeof activitySchema> & {
-  id: string;
-  created_at: string;
-};
 export type Citation = z.infer<typeof citationSchema>;
 export interface Course {
   id: string;
   owner_id: string;
   title: string;
-  outline: Unit[];
   created_at: string;
-  outline_source?: string;
 }
 export interface Material {
   id: string;
@@ -59,7 +41,6 @@ export interface Material {
   error?: string;
   checksum?: string;
   page_count?: number;
-  outline_draft?: Unit[];
 }
 export interface Message {
   id: string;

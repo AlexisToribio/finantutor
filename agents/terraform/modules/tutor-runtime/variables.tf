@@ -2,13 +2,25 @@ variable "prefix" {
   type        = string
   description = "Resource naming prefix"
 }
-variable "knowledge_base_id" {
+variable "vector_bucket_name" {
   type        = string
-  description = "Managed knowledge base ID"
+  description = "S3 Vectors bucket used by the course tutor"
 }
-variable "knowledge_base_arn" {
+
+variable "vector_index_name" {
   type        = string
-  description = "Managed knowledge base ARN"
+  description = "S3 Vectors index used by the course tutor"
+}
+
+variable "vector_index_arn" {
+  type        = string
+  description = "S3 Vectors index ARN used for scoped retrieval permissions"
+}
+
+variable "embedding_model_id" {
+  type        = string
+  description = "Titan Text Embeddings model ID"
+  default     = "amazon.titan-embed-text-v2:0"
 }
 variable "model_id" {
   type        = string

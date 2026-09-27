@@ -1,50 +1,43 @@
 # Arquitectura y orquestación
 
-[Abrir arquitectura AWS interactiva](diagrams/finantutor-aws.html) · [Descargar Draw.io editable](diagrams/finantutor-aws.drawio) · [Fuentes y comprobaciones de los diagramas](diagrams/README.md).
-
-## Decisión: un agente con herramientas
-
-El objetivo es aprender una asignatura con un estilo docente consistente. Un TutorAgent mantiene la conversación, decide cuándo consultar el material y explica los resultados. La recuperación y el cálculo tienen contratos acotados; no necesitan razonamiento autónomo de otros agentes. Añadir especialistas desde el inicio aumentaría llamadas al modelo, latencia y coordinación sin demostrar una mejora pedagógica.
-
-La ingesta es un proceso determinista separado, no un agente. Un sistema multiagente tendría sentido si aparecen tareas extensas e independientes, como evaluar trabajos con una rúbrica confirmada y revisión separada, o contrastar escenarios con varios especialistas. Primero se debe medir la calidad con preguntas y ejercicios reales del curso.
+Finantutor es un tutor conversacional para estudiantes de la Maestría en Inteligencia Artificial que cursan **Modelos financieros y evaluación de proyectos**. Utiliza un agente Strands en AgentCore Runtime, las herramientas numéricas deterministas existentes y una base de conocimiento por curso almacenada en S3 Vectors. No genera fichas.
 
 ```mermaid
 flowchart LR
   U[Estudiante] --> UI[React · CloudFront + S3]
-  UI --> A[Cognito]
-  UI --> B[BFF · Lambda con streaming]
-  B --> D[DynamoDB · cursos, mensajes, progreso]
-  B --> R[AgentCore Runtime · TutorAgent Strands]
-  R --> L[Modelo Amazon Bedrock]
-  R --> M[AgentCore Memory · conversación]
-  R --> K[Bedrock Managed Knowledge Base]
-  R --> F[Calculadora Decimal]
+  UI --> C[Cognito]
+  UI --> B[BFF · Lambda]
+  B --> D[DynamoDB · cursos, materiales, conversaciones]
+  B --> R[AgentCore Runtime · TutorAgent]
+  R --> L[Bedrock · modelo tutor]
+  R --> M[AgentCore Memory]
+  R --> V[S3 Vectors · índice del curso]
+  R --> E[Bedrock · Titan Embeddings]
+  R --> F[Calculadora financiera]
   UI --> S[S3 privado · PDFs originales]
-  S --> E[EventBridge]
-  E --> W[Step Functions · ingesta]
-  W --> P[Lambda Python · validar y extraer páginas]
-  P --> C[S3 privado · texto y metadatos]
-  C --> K
-  P --> D
+  S --> W[Lambda de ingesta · ObjectCreated]
+  W --> P[Extraer páginas · dividir · embeber]
+  P --> V
+  W --> D
 ```
 
-## Turno del tutor
+## Conversación
 
-1. El BFF valida el token, la propiedad del curso y el UUID de conversación. Adquiere una exclusión temporal para impedir turnos simultáneos en la misma sesión.
-2. Carga el mapa confirmado, los materiales disponibles y el progreso. Fija propietario y curso; el modelo no puede cambiar este ámbito. Persiste la pregunta.
-3. Invoca AgentCore con un identificador SHA-256 que combina usuario, curso y conversación. Un nuevo TutorAgent utiliza el contexto de esa sesión.
-4. `get_course_outline` consulta el mapa; `search_materials` busca evidencia con filtros por propietario/curso y una segunda comprobación contra el catálogo. `calculate_financial_metric` calcula las operaciones autorizadas. `get_learning_progress` consulta actividades y `record_learning_activity` propone una actividad con evidencia explícita.
-5. El runtime limita las herramientas a 12 usos por turno, la generación a 2.500 tokens por llamada y el turno a 105 segundos. Envía fragmentos, estados y latidos de 15 segundos. Un error o timeout no produce una respuesta terminada.
-6. Al cerrar el stream, el BFF comprueba las referencias. Guarda respuesta y actividades en una transacción SQLite o DynamoDB y envía `done` únicamente después de confirmar la escritura. El navegador usa ese evento para cerrar el mensaje.
+1. El BFF valida identidad y propiedad del curso; construye un ámbito confiable con los materiales listos.
+2. AgentCore invoca el único tutor. El prompt se dirige a estudiantes de la maestría y exige distinguir contenido respaldado por el curso de explicaciones generales.
+3. El agente embebe la consulta con Titan y busca en S3 Vectors, limitado por propietario y curso. Vuelve a comprobar material y versión contra el catálogo enviado por el BFF.
+4. El agente responde con referencias a los fragmentos recuperados. El BFF valida esas referencias, persiste el mensaje y transmite el evento final al navegador.
 
-La memoria de AgentCore conserva eventos de conversación 30 días; no hay extracción de recuerdos a largo plazo. El historial y el progreso del BFF son persistentes. En local, se restauran los últimos 20 mensajes del BFF. El tutor distingue contenido citado, ejemplos propios y supuestos. Las citas permiten inspeccionar evidencia; no garantizan por sí mismas que toda explicación sea correcta.
+El agente conserva las herramientas financieras deterministas existentes. Las tasas se tratan como fracciones y los cálculos requieren supuestos explícitos. La recuperación no otorga al agente acceso para elegir otro curso o propietario.
 
-## Ingesta
+## Carga e indexación
 
-La URL de carga autoriza un objeto concreto y expira en diez minutos. En AWS el original dispara EventBridge → Step Functions. El worker valida el catálogo, PDF y páginas; escribe fragmentos por página con metadatos de propietario, curso, material, versión y unidad. Inicia la sincronización y espera mediante polling con reintentos. Solo un job COMPLETE sin fallos de documentos marca el material `ready`. Fallos, cancelaciones y timeouts actualizan el catálogo a `failed` mediante seguimiento de eventos del workflow.
+El estudiante sube un PDF desde **Sílabo y materiales**. El BFF valida metadatos y tamaño, registra el material en DynamoDB y firma una carga directa a S3. El evento `ObjectCreated` del prefijo `incoming/` activa la Lambda de ingesta. Esta valida el material y el PDF, extrae texto por página, genera fragmentos y embeddings Titan, y escribe vectores con metadatos de curso, propietario, material, versión, título y página. Finalmente actualiza el registro a `ready`; ante un error lo marca `failed` y escribe el detalle técnico en CloudWatch.
 
-Los originales y el corpus se almacenan separados; el tutor recupera únicamente del corpus y de documentos `ready`. CloudFront accede a S3 y a la URL IAM de Lambda mediante OAC. El token Cognito viaja en `x-authorization` para conservarse cuando CloudFront firma la petición al origen; las peticiones con cuerpo incluyen su SHA-256.
+La carga aceptada por S3 todavía no significa que el documento se pueda consultar. El frontend consulta el catálogo y solo muestra materiales listos como fuentes disponibles. Se admite PDF con texto seleccionable, hasta 50 MiB y los límites de páginas y contenido fijados por el validador. No se incluye OCR.
 
-## Evolución
+## Componentes y despliegue
 
-Antes de ampliar: comprobar respuestas sobre tus materiales, exactitud de fórmulas y cálculos, referencias por página, ejercicios guiados y comportamiento ante preguntas fuera del sílabo. Posteriormente pueden añadirse OCR, ejercicios estructurados, versionado lógico, políticas de conservación, presupuestos y alarmas. No están incluidos en este MVP.
+Cada uno de `ingest`, `agents`, `backend` y `frontend` mantiene su propio Terraform y scripts. La raíz los despliega en orden `ingest → agents → backend → frontend`; para destruirlos usa `frontend → backend → agents → ingest`. Cada stack tiene state key separado por entorno. El bucket de estado se conserva al destruir, salvo que se solicite explícitamente `--including-state`.
+
+El detalle de preparación y operación está en [la guía de despliegue](deployment.md). El diagrama interactivo existente se actualizará como tarea documental separada.

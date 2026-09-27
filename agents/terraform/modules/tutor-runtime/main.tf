@@ -15,7 +15,8 @@ resource "aws_iam_role_policy" "runtime" {
   role = aws_iam_role.runtime.id
   policy = jsonencode({ Version = "2012-10-17", Statement = [
     { Effect = "Allow", Action = ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"], Resource = ["arn:aws:bedrock:*::foundation-model/${replace(var.model_id, "/^(global|us|eu|apac)\\./", "")}", "arn:aws:bedrock:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:inference-profile/${var.model_id}"] },
-    { Effect = "Allow", Action = ["bedrock:Retrieve"], Resource = var.knowledge_base_arn },
+    { Effect = "Allow", Action = ["s3vectors:QueryVectors", "s3vectors:GetVectors", "s3vectors:GetIndex"], Resource = var.vector_index_arn },
+    { Effect = "Allow", Action = ["bedrock:InvokeModel"], Resource = "arn:aws:bedrock:${data.aws_region.current.region}::foundation-model/${var.embedding_model_id}" },
     { Effect = "Allow", Action = ["bedrock-agentcore:GetMemory", "bedrock-agentcore:GetEvent", "bedrock-agentcore:CreateEvent", "bedrock-agentcore:ListEvents", "bedrock-agentcore:DeleteEvent"], Resource = aws_bedrockagentcore_memory.stm.arn },
     { Effect = "Allow", Action = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents", "logs:DescribeLogStreams"], Resource = "arn:aws:logs:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/bedrock-agentcore/runtimes/${replace(var.prefix, "-", "_")}*" }
   ] })

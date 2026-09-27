@@ -1,6 +1,6 @@
 import serverless from "serverless-http";
 import { compose } from "./infrastructure/composition.js";
-import { createApp } from "./infrastructure/app.js";
+import { createApp } from "./infrastructure/http/create-app.js";
 import { chatInput } from "./application/chat.js";
 import { AppError } from "./domain/contracts.js";
 import { ZodError } from "zod";
@@ -20,15 +20,40 @@ export const handler = awslambda.streamifyResponse(
         event.rawPath ?? "",
       );
     if (event.requestContext?.http?.method !== "POST" || !match) {
-      const result = (await buffered(event, context)) as {
+      const requestEvent = {
+        ...event,
+        headers: {
+          ...event.headers,
+          "x-request-id": event.requestContext?.requestId ?? context.awsRequestId,
+        },
+      };
+      const result = (await buffered(requestEvent, context)) as {
         statusCode: number;
         headers: object;
         body: string;
         isBase64Encoded?: boolean;
       };
+      // Lambda response streaming frames the body as chunks; forwarding Express's
+      // Content-Length (or hop-by-hop headers) makes the origin response invalid.
+      const streamingHeaders = Object.fromEntries(
+        Object.entries(result.headers as Record<string, string>).filter(
+          ([name]) =>
+            ![
+              "content-length",
+              "transfer-encoding",
+              "connection",
+              "keep-alive",
+              "proxy-authenticate",
+              "proxy-authorization",
+              "te",
+              "trailer",
+              "upgrade",
+            ].includes(name.toLowerCase()),
+        ),
+      );
       const stream = awslambda.HttpResponseStream.from(rawStream, {
         statusCode: result.statusCode,
-        headers: result.headers,
+        headers: streamingHeaders,
       });
       stream.end(
         result.isBase64Encoded

@@ -13,7 +13,6 @@ class TutorTools:
     ) -> None:
         self.scope, self.retriever, self.budget = scope, retriever, budget
         self.references: dict[str, dict[str, Any]] = {}
-        self.activities: list[dict[str, Any]] = []
 
     def spend(self) -> None:
         if self.budget <= 0:
@@ -42,17 +41,3 @@ class TutorTools:
         if not isinstance(parameters, dict):
             raise ValueError("Los parámetros deben ser un objeto JSON.")
         return calculate(operation, parameters)
-
-    def record_activity(self, topic: str, outcome: str, evidence: str) -> dict[str, Any]:
-        self.spend()
-        if (
-            outcome not in ("studied", "practiced", "needs_review")
-            or not 1 <= len(topic.strip()) <= 200
-            or not 1 <= len(evidence.strip()) <= 500
-        ):
-            raise ValueError(
-                "Actividad inválida; incluye tema y evidencia explícita de la interacción."
-            )
-        activity = {"topic": topic.strip(), "outcome": outcome, "evidence": evidence.strip()}
-        self.activities.append(activity)
-        return {"status": "pending_commit", **activity}

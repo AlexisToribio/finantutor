@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
 
-PYTHON="${PYTHON:-$FINANTUTOR_ROOT/agents/.venv/bin/python}"
-if [[ ! -x "$PYTHON" ]]; then PYTHON="$(command -v python3)"; fi
-
 finantutor_init_terraform() {
   local component="$1"
   local environment="$2"
@@ -87,7 +84,6 @@ finantutor_output() {
 
 finantutor_empty_bucket() {
   local bucket="$1"
-  local region="${2:-us-east-1}"
   [[ -n "$bucket" ]] || return 0
-  "$PYTHON" "$FINANTUTOR_ROOT/scripts/empty-versioned-bucket.py" "$bucket" --region "$region"
+  "$FINANTUTOR_ROOT/scripts/empty-s3-bucket.sh" "$bucket"
 }

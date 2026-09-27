@@ -4,12 +4,11 @@ Tutor personal para **Modelos financieros y evaluación de proyectos**, de la ma
 
 ## Qué implementa
 
-- Conversaciones con streaming, historial persistente y cuatro modos: explicación, práctica, casos y repaso.
-- PDFs de sílabo y teoría, extracción por página, estados de ingesta y fuentes que se pueden abrir desde la respuesta.
-- Mapa del curso editable: las unidades propuestas provienen de encabezados del sílabo y requieren confirmación.
+- Interfaz centrada en dos áreas: conversación con el agente y carga de sílabo/materiales PDF.
+- Respuestas con streaming, historial persistente, citas y enlaces a las fuentes consultadas.
+- Los materiales muestran el estado de preparación y quedan disponibles como contexto de la conversación.
 - VAN, TIR, conversión de tasas efectivas y sensibilidad calculados con `Decimal`, fuera del modelo.
-- Progreso con tema y evidencia de actividades; sin calificaciones inferidas.
-- Desarrollo local con SQLite y PDFs en disco; infraestructura AWS con Cognito, Lambda, AgentCore, Bedrock Managed Knowledge Base, DynamoDB, S3 y CloudFront.
+- Desarrollo local con SQLite y PDFs en disco; infraestructura AWS con Cognito, Lambda, AgentCore, DynamoDB, S3, S3 Vectors y CloudFront.
 
 ## Estructura
 
@@ -57,9 +56,9 @@ pnpm dev:backend
 pnpm dev:frontend
 ```
 
-Abre `http://localhost:5173`. Pulsa **Crear cuaderno** para registrar tu asignatura inicial. Sube un PDF en **Materiales**, espera el estado disponible y revisa **Mapa del curso** antes de confirmarlo. Después pregunta por un tema o pide un ejercicio de VAN con sus supuestos.
+Abre `http://localhost:5173`. Registra el curso **Modelos financieros y evaluación de proyectos**, sube el sílabo o un PDF de teoría en **Sílabo y materiales** y espera a que figure como disponible. Luego conversa con el tutor en **Conversar**.
 
-`LOCAL_TOKEN` y `VITE_LOCAL_TOKEN` deben coincidir. La autenticación local identifica un estudiante de desarrollo y los servidores escuchan en localhost; producción usa Cognito. Los datos quedan en `.local/`, fuera de Git. Un reinicio durante ingesta local puede dejar el material pendiente: vuelve a cargarlo. El adaptador local busca coincidencias de texto; AWS ofrece recuperación mediante la KB.
+`LOCAL_TOKEN` y `VITE_LOCAL_TOKEN` deben coincidir. La autenticación local identifica un estudiante de desarrollo y los servidores escuchan en localhost; producción usa Cognito. Los datos quedan en `.local/`, fuera de Git. Un reinicio durante ingesta local puede dejar el material pendiente: vuelve a cargarlo. El adaptador local busca coincidencias de texto; AWS recupera fragmentos desde S3 Vectors.
 
 ### Formatos y límites
 

@@ -24,7 +24,6 @@ def main() -> int:
         **metadata,
         "pages": [asdict(page) for page in document.pages],
         "checksum": document.checksum,
-        "outline_draft": document.outline,
     }
     path = directory / f"{metadata['id']}.json"
     temporary = path.with_suffix(".tmp")
@@ -34,7 +33,6 @@ def main() -> int:
         json.dumps(
             {
                 "checksum": document.checksum,
-                "outline_draft": document.outline,
                 "page_count": len(document.pages),
             },
             ensure_ascii=False,

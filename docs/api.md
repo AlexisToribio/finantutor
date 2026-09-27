@@ -6,17 +6,15 @@ Prefijo `/api/v1`. Autenticación mediante `Authorization: Bearer …`; en Cloud
 |---|---|---|
 | GET | `/health` | Salud sin credenciales |
 | GET / POST | `/courses` | Listar / crear curso con `title` |
-| PUT | `/courses/:course/outline` | Confirmar `units` y `source_material_id` opcional |
 | GET | `/courses/:course/materials` | Catálogo y estado de ingesta |
 | POST | `/courses/:course/materials/uploads` | `title`, `filename`, `kind`, `unit`, `size`; devuelve material, URL y headers de PUT |
 | GET | `/courses/:course/materials/:material/source` | PDF o redirección firmada tras autorización |
-| GET | `/courses/:course/progress` | Actividades del curso |
 | GET | `/courses/:course/conversations/:session/messages` | Historial |
 | POST | `/courses/:course/conversations/:session/messages` | `{prompt, mode}` → SSE |
 
-`mode`: `explain`, `practice`, `case` o `review`. Curso y sesión son UUID. Cada unidad tiene `title`, `objective` y `source_page` opcional. `kind`: `syllabus` o `theory`. La URL de carga es una capacidad temporal; envía el PDF con exactamente los headers devueltos. Localmente el PUT retorna 202; en AWS S3 retorna su respuesta y EventBridge inicia el procesamiento.
+`mode`: `explain`, `practice`, `case` o `review`. Curso y sesión son UUID. `kind`: `syllabus` o `theory`. La URL de carga es una capacidad temporal; envía el PDF con exactamente los headers devueltos. Localmente el PUT retorna 202; en AWS S3 retorna su respuesta y la notificación `ObjectCreated` activa la Lambda de ingesta, que indexa el material en S3 Vectors.
 
-Estados de material: `uploading` → `indexing` → `ready` / `failed`. Si el PUT nunca llega, queda `uploading`; recarga el archivo para crear una nueva solicitud.
+Estados de material: `uploading` → `indexing` → `ready` / `failed`. Si el PUT nunca llega, queda `uploading`; recarga el archivo para crear una nueva solicitud. Solo materiales `ready` se incluyen en el contexto autorizado de búsqueda.
 
 Eventos SSE en bloques `data: JSON\n\n`:
 
@@ -24,7 +22,7 @@ Eventos SSE en bloques `data: JSON\n\n`:
 {"type":"status","text":"Revisando tu pregunta…"}
 {"type":"delta","text":"El VAN representa…"}
 {"type":"heartbeat"}
-{"type":"done","reply":"Respuesta completa","citations":[],"activities":[],"message_id":"uuid"}
+{"type":"done","reply":"Respuesta completa","citations":[],"message_id":"uuid"}
 ```
 
 `error` cierra el turno sin éxito. No basta el cierre de conexión: solo `done` confirma respuesta guardada. Una cita identifica `source_id`, `material_id`, `version`, `title` y página cuando existe; el texto usa `[[S1]]`. Las referencias se restringen al catálogo del curso.

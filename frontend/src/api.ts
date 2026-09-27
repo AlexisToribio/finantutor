@@ -1,14 +1,7 @@
 import { token } from "./auth";
-export interface Unit {
-  title: string;
-  objective: string;
-  source_page?: string;
-}
 export interface Course {
   id: string;
   title: string;
-  outline: Unit[];
-  outline_source?: string;
 }
 export interface Citation {
   source_id: string;
@@ -31,16 +24,8 @@ export interface Material {
   filename: string;
   kind: "syllabus" | "theory";
   status: string;
-  outline_draft?: Unit[];
   page_count?: number;
   error?: string;
-}
-export interface Activity {
-  id: string;
-  topic: string;
-  outcome: string;
-  evidence: string;
-  created_at: string;
 }
 export async function headers(body?: string): Promise<Record<string, string>> {
   const bearer = `Bearer ${await token()}`;
@@ -73,7 +58,11 @@ export async function request<T>(
   });
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new Error(error.detail ?? "No se pudo completar la solicitud.");
+    const requestId = response.headers.get("x-request-id");
+    const detail = error.detail ?? "No se pudo completar la solicitud.";
+    throw new Error(
+      `${detail} (HTTP ${response.status}${requestId ? `, solicitud ${requestId}` : ""})`,
+    );
   }
   return response.json() as Promise<T>;
 }
@@ -101,7 +90,10 @@ export async function chat(
   });
   if (!response.ok || !response.body) {
     const detail = await response.json().catch(() => ({}));
-    throw new Error(detail.detail ?? "No se pudo iniciar la respuesta.");
+    const requestId = response.headers.get("x-request-id");
+    throw new Error(
+      `${detail.detail ?? "No se pudo iniciar la respuesta."} (HTTP ${response.status}${requestId ? `, solicitud ${requestId}` : ""})`,
+    );
   }
   const reader = response.body.getReader(),
     decoder = new TextDecoder();

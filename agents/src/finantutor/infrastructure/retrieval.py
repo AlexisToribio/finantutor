@@ -49,11 +49,28 @@ class LocalRetriever:
         return [{k: v for k, v in hit.items() if k != "_score"} for hit in hits[:6]]
 
 
-class ManagedKnowledgeRetriever:
-    def __init__(self, knowledge_base_id: str, region: str) -> None:
-        self.knowledge_base_id = knowledge_base_id
-        self.client = boto3.client(
-            "bedrock-agent-runtime",
+class S3VectorRetriever:
+    def __init__(
+        self,
+        vector_bucket: str,
+        vector_index: str,
+        embedding_model_id: str,
+        region: str,
+    ) -> None:
+        self.vector_bucket = vector_bucket
+        self.vector_index = vector_index
+        self.embedding_model_id = embedding_model_id
+        self.bedrock = boto3.client(
+            "bedrock-runtime",
+            region_name=region,
+            config=Config(
+                connect_timeout=5,
+                read_timeout=30,
+                retries={"mode": "standard", "total_max_attempts": 3},
+            ),
+        )
+        self.vectors = boto3.client(
+            "s3vectors",
             region_name=region,
             config=Config(
                 connect_timeout=5,
@@ -65,24 +82,37 @@ class ManagedKnowledgeRetriever:
     def search(
         self, query: str, scope: dict[str, Any], unit: str | None = None
     ) -> list[dict[str, Any]]:
-        filters = [
-            {"equals": {"key": "owner_id", "value": scope["owner_id"]}},
-            {"equals": {"key": "course_id", "value": scope["course_id"]}},
+        embedding_response = self.bedrock.invoke_model(
+            modelId=self.embedding_model_id,
+            contentType="application/json",
+            accept="application/json",
+            body=json.dumps({"inputText": query, "dimensions": 1024, "normalize": True}),
+        )
+        payload = json.loads(embedding_response["body"].read())
+        embedding = payload.get("embedding")
+        if not isinstance(embedding, list):
+            raise ValueError("Bedrock embedding response missing vector")
+        filters: list[dict[str, Any]] = [
+            {"owner_id": {"$eq": scope["owner_id"]}},
+            {"course_id": {"$eq": scope["course_id"]}},
         ]
         if unit:
-            filters.append({"equals": {"key": "unit", "value": unit}})
-        response = self.client.retrieve(
-            knowledgeBaseId=self.knowledge_base_id,
-            retrievalQuery={"text": query},
-            retrievalConfiguration={"managedSearchConfiguration": {"filter": {"andAll": filters}}},
+            filters.append({"unit": {"$eq": unit}})
+        response = self.vectors.query_vectors(
+            vectorBucketName=self.vector_bucket,
+            indexName=self.vector_index,
+            queryVector={"float32": embedding},
+            topK=24,
+            filter={"$and": filters},
+            returnMetadata=True,
+            returnDistance=True,
         )
         allowed = {item["id"]: item for item in scope.get("materials", [])}
         hits = []
-        for result in response.get("retrievalResults", []):
+        for result in response.get("vectors", []):
             metadata = result.get("metadata", {})
             material_id = metadata.get("material_id")
             material = allowed.get(material_id)
-            # Defense in depth: server catalogue must declare this version ready.
             if (
                 not material
                 or metadata.get("owner_id") != scope["owner_id"]
@@ -91,7 +121,7 @@ class ManagedKnowledgeRetriever:
                 continue
             if str(metadata.get("version")) != str(material["version"]):
                 continue
-            text = result.get("content", {}).get("text", "")
+            text = metadata.get("source_text", "")
             if text:
                 hits.append(
                     {

@@ -1,5 +1,7 @@
 # Finantutor: propuesta de arquitectura y alcance
 
+> **Arquitectura sustituida.** La propuesta original de Bedrock Managed Knowledge Base y Step Functions ya no describe el sistema vigente. La reemplaza [la alineación con Educagent](2026-09-27-finantutor-educagent-alignment.md), que define la ingesta directa a S3 Vectors y una interfaz de chat/materiales. Este documento se conserva como historial de decisiones.
+
 Fecha: 2026-09-27. Estado: aprobado por el usuario; MVP implementado en `finantutor/`.
 
 ## Objetivo

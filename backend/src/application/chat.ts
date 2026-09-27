@@ -9,7 +9,6 @@ import {
   type Course,
   type Material,
   type Message,
-  type Activity,
   type AgentEvent,
 } from "../domain/contracts.js";
 export const chatInput = z.object({
@@ -49,9 +48,6 @@ export class Chat {
       const materials = (
         await this.store.list<Material>(partition, "material#")
       ).filter((item) => item.status === "ready");
-      const progress = (
-        await this.store.list<Activity>(partition, "activity#")
-      ).slice(-30);
       const timestamp = new Date().toISOString();
       await this.store.put(pk, `message#${timestamp}#${lease}`, {
         id: lease,
@@ -65,8 +61,6 @@ export class Chat {
         owner_id: owner,
         course_id: courseId,
         title: course.title,
-        outline: course.outline,
-        progress,
         materials: materials.map(({ id, title, version }) => ({
           id,
           title,
@@ -102,11 +96,6 @@ export class Chat {
         id = randomUUID();
       // Never publish a successful terminal event before its durable writes complete.
       await this.store.commit([
-        ...done.activities.map((activity, index) => ({
-          pk: partition,
-          sk: `activity#${at}#${id}#${index}`,
-          value: { ...activity, id: `${id}-${index}`, created_at: at },
-        })),
         {
           pk,
           sk: `message#${at}#${id}`,

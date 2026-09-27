@@ -8,6 +8,10 @@
 
 **Tech Stack:** React, Vite, TypeScript, Express, AWS Lambda, DynamoDB, S3, S3 Vectors, Cognito, Bedrock Titan Text Embeddings, Strands Agents, Bedrock AgentCore, Terraform, pnpm, uv.
 
+## Execution status
+
+Implementation changes are applied in the working tree: managed-KB ingestion was replaced with direct S3 Vectors indexing; the tutor and API no longer expose progress/map tools; project and root scripts follow the Educagent deploy/destroy order; the frontend chat/materials areas are separate features; and operational docs describe the new flow. No tests, builds, Terraform validation, or AWS operations were run in this execution, so code and infrastructure compatibility remain to be verified before deployment. Existing tests that assert the retired managed-KB or outline/progress contracts need alignment before they can serve as verification.
+
 ---
 
 ## File map

@@ -1,6 +1,5 @@
 import hashlib
 import io
-import re
 
 from pypdf import PdfReader
 
@@ -19,7 +18,6 @@ def prepare_pdf(data: bytes, kind: str = "theory") -> Document:
     if not 1 <= len(reader.pages) <= 500:
         raise ValueError("El PDF debe tener entre 1 y 500 páginas.")
     pages = []
-    outline = []
     for index, page in enumerate(reader.pages, start=1):
         text = (page.extract_text() or "").strip()
         if len(text) < 20:
@@ -29,10 +27,4 @@ def prepare_pdf(data: bytes, kind: str = "theory") -> Document:
         if len(text) > 100000:
             raise ValueError("Una página contiene demasiado texto para indexarse.")
         pages.append(Page(index, text))
-        if kind == "syllabus":
-            for line in text.splitlines():
-                if re.match(r"^\s*(unidad|semana|m[oó]dulo)\s+(\d+|[IVX]+)\b", line, re.I):
-                    outline.append(
-                        {"title": line.strip()[:200], "objective": "", "source_page": str(index)}
-                    )
-    return Document(hashlib.sha256(data).hexdigest(), pages, outline[:60])
+    return Document(hashlib.sha256(data).hexdigest(), pages)

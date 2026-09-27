@@ -1,18 +1,27 @@
+output "ingest_lambda_name" {
+  value = module.ingest.ingest_lambda_name
+}
+
 output "materials_bucket" {
-  value = module.stack.materials_bucket
+  value = module.ingest.books_bucket_name
 }
-output "corpus_bucket" {
-  value = module.stack.corpus_bucket
+
+output "materials_bucket_arn" {
+  value = module.ingest.books_bucket_arn
 }
-output "knowledge_base_id" {
-  value = module.stack.knowledge_base_id
+
+output "vector_bucket_name" {
+  value = module.ingest.vector_bucket_name
 }
-output "knowledge_base_arn" {
-  value = module.stack.knowledge_base_arn
+
+output "vector_index_name" {
+  value = module.ingest.vector_index_name
 }
-output "data_source_id" {
-  value = module.stack.data_source_id
+
+output "vector_index_arn" {
+  value = module.ingest.vector_index_arn
 }
-output "workflow_arn" {
-  value = module.stack.workflow_arn
+
+output "embedding_model_id" {
+  value = module.ingest.embedding_model_id
 }

@@ -25,34 +25,11 @@ def build_tools(state: TutorTools) -> list[Any]:
         return guarded(lambda: state.search(query, unit))
 
     @tool
-    def get_course_outline() -> str:
-        """Consulta las unidades y objetivos confirmados por el estudiante."""
-        state.spend()
-        return json.dumps(state.scope.get("outline", []), ensure_ascii=False)
-
-    @tool
     def calculate_financial_metric(operation: str, parameters_json: str) -> str:
         """Calcula npv, irr, convert_rate o sensitivity con parámetros JSON y supuestos explícitos."""
         return guarded(lambda: state.financial_metric(operation, parameters_json))
 
-    @tool
-    def get_learning_progress() -> str:
-        """Consulta actividades previas registradas, sin inferir dominio ni notas."""
-        state.spend()
-        return json.dumps(state.scope.get("progress", [])[-30:], ensure_ascii=False)
-
-    @tool
-    def record_learning_activity(topic: str, outcome: str, evidence: str) -> str:
-        """Registra actividad explícita: studied, practiced o needs_review; pendiente de guardar."""
-        return guarded(lambda: state.record_activity(topic, outcome, evidence))
-
-    return [
-        search_materials,
-        get_course_outline,
-        calculate_financial_metric,
-        get_learning_progress,
-        record_learning_activity,
-    ]
+    return [search_materials, calculate_financial_metric]
 
 
 async def stream_tutor(
@@ -136,7 +113,6 @@ async def stream_tutor(
                     "type": "done",
                     "reply": reply,
                     "citations": citations,
-                    "activities": state.activities,
                 }
             )
         except Exception:

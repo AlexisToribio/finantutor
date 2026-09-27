@@ -25,7 +25,7 @@ FUNCTION_URL="$(finantutor_output backend "$ENV" function_url)"
 FUNCTION_NAME="$(finantutor_output backend "$ENV" function_name)"
 POOL_ID="$(finantutor_output backend "$ENV" cognito_pool_id)"
 CLIENT_ID="$(finantutor_output backend "$ENV" cognito_client_id)"
-[[ -n "$FUNCTION_URL" && -n "$FUNCTION_NAME" ]] || {
+[[ -n "$FUNCTION_URL" && -n "$FUNCTION_NAME" && -n "$POOL_ID" && -n "$CLIENT_ID" ]] || {
   echo "Deploy backend first: backend/scripts/deploy.sh $ENV" >&2
   exit 1
 }

@@ -1,6 +1,6 @@
 # Finantutor: alineación con Educagent
 
-Fecha: 2026-09-27. Estado: propuesta para revisión del usuario.
+Fecha: 2026-09-27. Estado: aprobada por el usuario; implementación en curso.
 
 ## Objetivo
 
@@ -99,4 +99,4 @@ README y guía de despliegue describen la estructura alineada, prerrequisitos, v
 
 ## Revisión del usuario
 
-Pendiente. La especificación traduce la instrucción de replicar Educagent y sustituir directamente la Knowledge Base administrada. Tras su revisión se elaborará el plan de implementación y se modificará Finantutor.
+Aprobada. El usuario solicitó continuar con el plan y la implementación.

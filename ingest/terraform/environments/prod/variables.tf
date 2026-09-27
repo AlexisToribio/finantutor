@@ -1,26 +1,33 @@
 variable "aws_region" {
-  type    = string
-  default = "us-east-1"
+  description = "AWS region for the ingestion resources"
+  type        = string
+  default     = "us-east-1"
 }
-variable "prefix" {
-  type    = string
-  default = "finantutor-prod"
+
+variable "project_name" {
+  description = "Project name used for resource naming"
+  type        = string
+  default     = "finantutor"
 }
+
+variable "environment" {
+  description = "Deployment environment"
+  type        = string
+  default     = "prod"
+}
+
+variable "embedding_model_id" {
+  description = "Bedrock Titan embedding model ID"
+  type        = string
+  default     = "amazon.titan-embed-text-v2:0"
+}
+
 variable "table_name" {
+  description = "Finantutor application table"
   type        = string
-  description = "Application catalogue table"
 }
+
 variable "table_arn" {
+  description = "Finantutor application table ARN"
   type        = string
-  description = "Application catalogue table ARN"
-}
-variable "allowed_origins" {
-  type        = list(string)
-  description = "Browser origins permitted for direct uploads and source downloads"
-  default     = ["http://127.0.0.1:5173", "http://localhost:5173"]
-}
-variable "lambda_zip" {
-  type        = string
-  description = "Packaged ingestion worker"
-  default     = "../../../dist/ingest.zip"
 }
