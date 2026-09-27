@@ -4,7 +4,7 @@ Fecha: 2026-09-27. Estado: propuesta para revisión del usuario.
 
 ## Objetivo
 
-Hacer que Finantutor replique la arquitectura, el patrón de despliegue y la ingesta de Educagent, conservando únicamente las diferencias de producto acordadas: un tutor financiero en vez de los agentes y flujos de Educagent, prompts propios, sin generación de fichas y una UI de conversación con carga de sílabo y materiales.
+Hacer que Finantutor replique la arquitectura, el patrón de despliegue y la ingesta de Educagent para ofrecer un chat a estudiantes de la Maestría en Inteligencia Artificial. El agente es tutor del curso **Modelos financieros y evaluación de proyectos** y responde consultas sobre los temas incorporados a la base de conocimiento del curso. Se conservan únicamente las diferencias de producto acordadas: un agente con prompts propios, sin generación de fichas y una UI de conversación con carga de sílabo y materiales.
 
 El usuario indicó que los recursos AWS existentes están siendo destruidos. Se prepara el código para desplegar la arquitectura alineada desde cero. No se incluye migración en paralelo ni se ejecuta Terraform contra AWS.
 
@@ -39,12 +39,14 @@ La destrucción actual de recursos AWS queda fuera de esta tarea de código. Si 
 
 ## Capacidades de Finantutor que se conservan
 
-- Tutor conversacional para finanzas y evaluación de proyectos, con prompt de Finantutor.
-- Cursos y materiales de estudio; el sílabo se carga y consulta como material del curso.
+- Tutor conversacional dirigido a estudiantes de la Maestría en Inteligencia Artificial para el curso **Modelos financieros y evaluación de proyectos**.
+- Consulta de los temas incorporados a la base de conocimiento del curso; el sílabo y los materiales se cargan como fuentes del curso.
 - Referencias a las fuentes recuperadas, incluyendo página cuando el PDF permita identificarla.
 - Historial y autenticación que necesita el producto.
 - Herramientas numéricas financieras que ya formen parte del tutor, bajo validación determinista; no se amplía el catálogo de herramientas durante la alineación.
 - UI enfocada en conversar con el tutor y administrar la carga/estado de los documentos.
+
+El agente no se presenta como asistente financiero general. Basa las respuestas sobre el contenido del curso en materiales recuperados y cita sus fuentes; cuando no encuentre respaldo suficiente en la base, indica esa limitación con claridad.
 
 Se elimina de la UI cualquier navegación o pantalla de progreso, mapa del curso, biblioteca separada u otras capacidades que no sean chat y materiales. Se evita agregar generación de fichas o agentes especialistas.
 
@@ -68,7 +70,7 @@ README y guía de despliegue describen la estructura alineada, prerrequisitos, v
 ## Criterios de aceptación
 
 1. Los cuatro subproyectos conservan el patrón de carpetas y la separación de responsabilidades equivalente a Educagent, usando nombres y modelos de Finantutor.
-2. Existe exactamente un agente conversacional de Finantutor y puede recuperar materiales indexados en S3 Vectors.
+2. Existe exactamente un agente conversacional de Finantutor, dirigido al curso y estudiantes indicados, y puede recuperar materiales indexados en S3 Vectors.
 3. No queda ninguna ruta, prompt, interfaz o recurso para generación/descarga de fichas.
 4. Cargar un PDF al flujo de Finantutor produce texto, embeddings y vectores con metadatos de fuente y curso; los errores de procesamiento quedan observables y el estado es visible en la UI.
 5. Una respuesta con recuperación cita únicamente páginas y materiales presentes en los resultados del índice.
