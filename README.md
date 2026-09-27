@@ -84,4 +84,4 @@ terraform fmt -check -recursive .
 
 [Resultados y alcance de las comprobaciones](docs/validation.md).
 
-Para empaquetar: `bash scripts/package.sh`. Para AWS, sigue [la guía de despliegue](docs/deployment.md); el script muestra los planes y pide confirmación antes de cada apply. Esta entrega prepara la infraestructura, pero no crea recursos AWS.
+Para detener los procesos locales, ejecuta `scripts/down.sh`. Para empaquetar: `bash scripts/package.sh`. Para AWS, sigue [la guía de despliegue](docs/deployment.md): `scripts/deploy.sh dev` crea el bucket de estado propio si hace falta y despliega los componentes en orden; `scripts/destroy.sh dev` destruye el entorno, conservando el bucket de estado. La cuenta se obtiene de las credenciales AWS activas. Ninguno de esos comandos fue ejecutado durante esta entrega.
