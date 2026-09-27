@@ -4,7 +4,7 @@
 
 AWS CLI autenticada, acceso al modelo de Bedrock, Terraform >= 1.10, Docker Buildx con ARM64, Node 24/pnpm y Python/uv. El proveedor AWS está fijado a 6.65.0. La arquitectura se preparó para `us-east-1`; verifica la disponibilidad de Managed Knowledge Bases y del modelo antes de usar otra región.
 
-`scripts/deploy.sh` crea un bucket S3 privado de estado Terraform por entorno, región y cuenta (`finantutor-terraform-state-{entorno}-{región}-{cuenta}`). Habilita versionado, cifrado, bloqueo de acceso público y transporte TLS. Necesitas credenciales AWS activas y permisos para identificar la cuenta y crear/configurar buckets S3; el script obtiene el ID con STS. Esto no habilita automáticamente el acceso a modelos de Bedrock.
+`scripts/deploy.sh` crea un bucket S3 privado de estado Terraform por entorno: `finantutor-terraform-state-dev` o `finantutor-terraform-state-prod`. Los nombres de bucket S3 son globales; el despliegue fallará con un mensaje claro si el nombre ya pertenece a otra cuenta. Habilita versionado, cifrado, bloqueo de acceso público y transporte TLS. Necesitas credenciales AWS activas y permisos para identificar la cuenta y crear/configurar buckets S3; el script obtiene el ID con STS para comprobar propiedad. Esto no habilita automáticamente el acceso a modelos de Bedrock.
 
 ```bash
 scripts/deploy.sh dev

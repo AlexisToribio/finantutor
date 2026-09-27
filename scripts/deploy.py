@@ -22,7 +22,7 @@ aws = boto3.Session(region_name=args.region)
 
 def ensure_state_bucket() -> tuple[str, str]:
     account_id = aws.client("sts").get_caller_identity()["Account"]
-    bucket = f"finantutor-terraform-state-{args.environment}-{args.region}-{account_id}"
+    bucket = f"finantutor-terraform-state-{args.environment}"
     s3 = aws.client("s3", region_name=args.region)
     created = False
     try:

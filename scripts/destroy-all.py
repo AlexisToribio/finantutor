@@ -360,9 +360,7 @@ def main() -> None:
     ACCOUNT_ID = identity["Account"]
     if not ACCOUNT_ID.isdigit() or len(ACCOUNT_ID) != 12:
         sys.exit("AWS returned an invalid account ID; no infrastructure was changed.")
-    STATE_BUCKET = (
-        f"finantutor-terraform-state-{args.environment}-{args.region}-{ACCOUNT_ID}"
-    )
+    STATE_BUCKET = f"finantutor-terraform-state-{args.environment}"
     s3 = session.client("s3", region_name=args.region)
     try:
         s3.head_bucket(Bucket=STATE_BUCKET, ExpectedBucketOwner=ACCOUNT_ID)
