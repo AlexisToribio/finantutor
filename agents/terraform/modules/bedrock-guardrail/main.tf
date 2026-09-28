@@ -72,6 +72,8 @@ resource "aws_bedrock_guardrail" "finantutor" {
 resource "aws_bedrock_guardrail_version" "finantutor" {
   guardrail_arn = aws_bedrock_guardrail.finantutor.guardrail_arn
   description   = "Version ${var.environment}"
+}
+
 resource "aws_iam_policy" "apply_guardrail" {
   name        = "${var.project_name}-guardrail-access-${var.environment}"
   description = "Allow applying the Finantutor Bedrock Guardrail"
