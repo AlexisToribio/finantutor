@@ -2,58 +2,90 @@
 set -euo pipefail
 
 ENV="${1:-dev}"
-shift || true
-REGION="us-east-1"
-while (($#)); do
-  case "$1" in
-    --region) [[ -n "${2:-}" ]] || { echo "--region requires a value" >&2; exit 2; }; REGION="$2"; shift 2 ;;
-    *) echo "Usage: $0 [dev|prod] [--region REGION]" >&2; exit 2 ;;
-  esac
-done
-[[ "$ENV" == "dev" || "$ENV" == "prod" ]] || { echo "Usage: $0 [dev|prod] [--region REGION]" >&2; exit 2; }
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+TF_DIR="$ROOT/terraform/environments/$ENV"
+YAML="$ROOT/.bedrock_agentcore.yaml"
+YAML_TOOL="$ROOT/scripts/agentcore-yaml.py"
 
-AGENTS_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-FINANTUTOR_ROOT="$(cd "$AGENTS_ROOT/.." && pwd)"
-source "$FINANTUTOR_ROOT/scripts/common.sh"
-TF_DIR="$AGENTS_ROOT/terraform/environments/$ENV"
-YAML="$AGENTS_ROOT/.bedrock_agentcore.yaml"
-YAML_TOOL="$AGENTS_ROOT/scripts/agentcore-yaml.py"
-AGENT_NAME="finantutor_${ENV}_tutor"
-finantutor_init_terraform agents "$ENV" "$REGION"
-
-if [[ -f "$YAML" ]]; then
-  RUNTIME_ID="$(python3 "$YAML_TOOL" "$YAML" --get agent_id --agent "$AGENT_NAME")"
-  if [[ -n "$RUNTIME_ID" && "$RUNTIME_ID" != "null" ]]; then
-    echo "==> Deleting AgentCore runtime $RUNTIME_ID"
-    if DELETE_ERROR="$(aws bedrock-agentcore-control delete-agent-runtime \
-      --agent-runtime-id "$RUNTIME_ID" --region "$REGION" 2>&1)"; then
-      :
-    elif [[ "$DELETE_ERROR" != *ResourceNotFoundException* ]]; then
-      echo "$DELETE_ERROR" >&2
-      exit 1
-    fi
-    for _ in {1..36}; do
-      if ! aws bedrock-agentcore-control get-agent-runtime --agent-runtime-id "$RUNTIME_ID" \
-        --region "$REGION" >/dev/null 2>&1; then
-        break
-      fi
-      sleep 5
-    done
-  fi
-  python3 "$YAML_TOOL" "$YAML" --clear-runtime --agent "$AGENT_NAME"
+if [[ "$ENV" != "dev" && "$ENV" != "prod" ]]; then
+  echo "Usage: $0 [dev|prod]" >&2
+  exit 1
 fi
 
-INGEST_TF="$FINANTUTOR_ROOT/ingest/terraform/environments/$ENV"
-VECTOR_BUCKET="$(terraform -chdir="$INGEST_TF" output -raw vector_bucket_name)"
-VECTOR_INDEX="$(terraform -chdir="$INGEST_TF" output -raw vector_index_name)"
-VECTOR_INDEX_ARN="$(terraform -chdir="$INGEST_TF" output -raw vector_index_arn)"
-EMBEDDING_MODEL_ID="$(terraform -chdir="$INGEST_TF" output -raw embedding_model_id)"
-MODEL_ID="${TUTOR_MODEL_ID:-global.anthropic.claude-sonnet-4-5-20250929-v1:0}"
+if ! command -v terraform >/dev/null || ! command -v aws >/dev/null; then
+  echo "terraform and aws CLI are required" >&2
+  exit 1
+fi
 
-echo "==> Destroying AgentCore support resources ($ENV)"
-terraform -chdir="$TF_DIR" destroy -input=false -auto-approve \
-  -var="aws_region=$REGION" -var="prefix=finantutor-$ENV" \
-  -var="vector_bucket_name=$VECTOR_BUCKET" -var="vector_index_name=$VECTOR_INDEX" \
-  -var="vector_index_arn=$VECTOR_INDEX_ARN" \
-  -var="embedding_model_id=$EMBEDDING_MODEL_ID" -var="model_id=$MODEL_ID"
-echo "Done. Finantutor AgentCore resources destroyed."
+yaml_value() {
+  python3 "$YAML_TOOL" "$YAML" --get "$1" 2>/dev/null || true
+}
+
+delete_runtime() {
+  local agent_id="$1"
+  local region="$2"
+  if [[ -z "$agent_id" || "$agent_id" == "null" ]]; then
+    return 0
+  fi
+
+  echo "==> Deleting AgentCore runtime $agent_id"
+  # Do not use `agentcore destroy`: it detaches policies and deletes the Terraform execution role.
+  aws bedrock-agentcore-control delete-agent-runtime \
+    --agent-runtime-id "$agent_id" \
+    --region "$region" || true
+
+  local i
+  for i in $(seq 1 36); do
+    if ! aws bedrock-agentcore-control get-agent-runtime \
+      --agent-runtime-id "$agent_id" \
+      --region "$region" >/dev/null 2>&1; then
+      echo "Runtime gone"
+      return 0
+    fi
+    sleep 5
+  done
+  echo "Warning: runtime $agent_id still present after wait" >&2
+}
+
+delete_cli_memories() {
+  local region="$1"
+  local ids
+  ids="$(
+    aws bedrock-agentcore-control list-memories --region "$region" --output json \
+      | python3 -c '
+import json, sys
+data = json.loads(sys.stdin.read() or "{}")
+for m in data.get("memories") or []:
+    mid = m.get("id") or ""
+    if mid.startswith("finantutor_mem") or mid.startswith("finantutor_Agent_mem"):
+        print(mid)
+'
+  )"
+  local id
+  for id in $ids; do
+    [[ -z "$id" ]] && continue
+    echo "==> Deleting leftover CLI memory $id"
+    aws bedrock-agentcore-control delete-memory \
+      --memory-id "$id" \
+      --region "$region" || true
+  done
+}
+
+echo "==> Destroying agents ($ENV)"
+terraform -chdir="$TF_DIR" init -input=false -reconfigure
+
+REGION="$(terraform -chdir="$TF_DIR" output -raw aws_region 2>/dev/null || true)"
+if [[ -z "$REGION" || "$REGION" == "null" ]]; then
+  REGION="$(yaml_value region)"
+fi
+REGION="${REGION:-us-east-1}"
+
+AGENT_ID="$(yaml_value agent_id)"
+delete_runtime "$AGENT_ID" "$REGION"
+delete_cli_memories "$REGION"
+python3 "$YAML_TOOL" "$YAML" --clear-runtime
+
+echo "==> terraform destroy agents"
+terraform -chdir="$TF_DIR" destroy -input=false -auto-approve -var-file=terraform.tfvars
+
+echo "Done. Tutor runtime and AgentCore resources destroyed."

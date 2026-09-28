@@ -32,10 +32,20 @@ data "aws_iam_policy_document" "assume_lambda" {
 
 data "aws_iam_policy_document" "ingest" {
   statement {
-    sid    = "IncomingRead"
+    sid    = "IncomingReadDelete"
     effect = "Allow"
-    actions   = ["s3:GetObject"]
+    actions = [
+      "s3:GetObject",
+      "s3:DeleteObject",
+    ]
     resources = ["${var.books_bucket_arn}/incoming/*"]
+  }
+
+  statement {
+    sid       = "CanonicalBooksWrite"
+    effect    = "Allow"
+    actions   = ["s3:PutObject"]
+    resources = ["${var.books_bucket_arn}/books/*"]
   }
 
   statement {
@@ -43,15 +53,9 @@ data "aws_iam_policy_document" "ingest" {
     effect = "Allow"
     actions = [
       "s3vectors:PutVectors",
+      "s3vectors:GetIndex",
     ]
     resources = [var.vector_index_arn]
-  }
-
-  statement {
-    sid       = "MaterialStatus"
-    effect    = "Allow"
-    actions   = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
-    resources = [var.table_arn]
   }
 
   statement {

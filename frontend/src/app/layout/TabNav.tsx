@@ -1,17 +1,17 @@
-type Tab = "chat" | "materials";
+import { NavLink } from "react-router-dom";
 
-export function TabNav({ active, onChange }: { active: Tab; onChange: (tab: Tab) => void }) {
-  const tabs: Array<[Tab, string, string]> = [
-    ["chat", "01", "Conversar"],
-    ["materials", "02", "Sílabo y materiales"],
-  ];
+export function TabNav() {
   return (
-    <nav aria-label="Secciones del cuaderno">
-      {tabs.map(([id, number, label]) => (
-        <button key={id} className={active === id ? "active" : ""} onClick={() => onChange(id)}>
-          <span>{number}</span>{label}
-        </button>
-      ))}
+    <nav className="tabs" aria-label="Secciones">
+      <NavLink to="/" className={({ isActive }) => (isActive ? "tab active" : "tab")} end>
+        Tutor
+      </NavLink>
+      <NavLink
+        to="/materiales"
+        className={({ isActive }) => (isActive ? "tab active" : "tab")}
+      >
+        Subir material
+      </NavLink>
     </nav>
   );
 }

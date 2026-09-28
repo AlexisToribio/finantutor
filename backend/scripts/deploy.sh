@@ -2,48 +2,49 @@
 set -euo pipefail
 
 ENV="${1:-dev}"
-shift || true
-REGION="us-east-1"
-while (($#)); do
-  case "$1" in
-    --region) [[ -n "${2:-}" ]] || { echo "--region requires a value" >&2; exit 2; }; REGION="$2"; shift 2 ;;
-    *) echo "Usage: $0 [dev|prod] [--region REGION]" >&2; exit 2 ;;
-  esac
-done
-[[ "$ENV" == "dev" || "$ENV" == "prod" ]] || { echo "Usage: $0 [dev|prod] [--region REGION]" >&2; exit 2; }
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+TF_DIR="$ROOT/terraform/environments/$ENV"
+DIST="$ROOT/dist"
 
-BACKEND_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-FINANTUTOR_ROOT="$(cd "$BACKEND_ROOT/.." && pwd)"
-source "$FINANTUTOR_ROOT/scripts/common.sh"
-TF_DIR="$BACKEND_ROOT/terraform/environments/$ENV"
-YAML_TOOL="$FINANTUTOR_ROOT/agents/scripts/agentcore-yaml.py"
-AGENT_NAME="finantutor_${ENV}_tutor"
-
-for command in terraform pnpm python3; do
-  command -v "$command" >/dev/null || { echo "$command is required" >&2; exit 1; }
-done
-finantutor_ensure_state_bucket "$ENV" "$REGION"
-finantutor_init_terraform backend "$ENV" "$REGION"
-"$BACKEND_ROOT/scripts/package.sh"
-
-VARS=("-var=aws_region=$REGION" "-var=prefix=finantutor-$ENV")
-RUNTIME_ARN=""
-if [[ -f "$FINANTUTOR_ROOT/agents/.bedrock_agentcore.yaml" ]]; then
-  RUNTIME_ARN="$(python3 "$YAML_TOOL" "$FINANTUTOR_ROOT/agents/.bedrock_agentcore.yaml" \
-    --get agent_arn --agent "$AGENT_NAME")"
-fi
-MATERIALS_BUCKET="$(finantutor_output ingest "$ENV" materials_bucket)"
-[[ -n "$RUNTIME_ARN" && "$RUNTIME_ARN" != "null" && -n "$MATERIALS_BUCKET" && "$MATERIALS_BUCKET" != "null" ]] || {
-  echo "Deploy ingest and agents first: scripts/deploy.sh $ENV" >&2
+if [[ "$ENV" != "dev" && "$ENV" != "prod" ]]; then
+  echo "Usage: $0 [dev|prod]" >&2
   exit 1
-}
-VARS+=("-var=agent_runtime_arn=$RUNTIME_ARN" "-var=materials_bucket=$MATERIALS_BUCKET")
-printf '{"aws_region":"%s","prefix":"finantutor-%s","agent_runtime_arn":%s,"materials_bucket":%s}\n' \
-  "$REGION" "$ENV" \
-  "$(if [[ -n "$RUNTIME_ARN" && "$RUNTIME_ARN" != "null" ]]; then printf '"%s"' "$RUNTIME_ARN"; else printf 'null'; fi)" \
-  "$(if [[ -n "$MATERIALS_BUCKET" && "$MATERIALS_BUCKET" != "null" ]]; then printf '"%s"' "$MATERIALS_BUCKET"; else printf 'null'; fi)" \
-  > "$TF_DIR/deployment.auto.tfvars.json"
+fi
 
-echo "==> Applying backend ($ENV)"
-terraform -chdir="$TF_DIR" apply -input=false -auto-approve "${VARS[@]}"
-echo "Done. Backend Lambda: $(finantutor_output backend "$ENV" function_name)"
+if ! command -v terraform >/dev/null; then
+  echo "terraform is required" >&2
+  exit 1
+fi
+
+if ! command -v pnpm >/dev/null; then
+  echo "pnpm is required" >&2
+  exit 1
+fi
+
+echo "==> Bundling Lambda"
+mkdir -p "$DIST"
+pnpm --dir "$ROOT" exec esbuild src/lambda.ts \
+  --bundle \
+  --platform=node \
+  --target=node24 \
+  --format=cjs \
+  --outfile="$DIST/index.js"
+rm -f "$DIST/lambda.zip"
+(
+  cd "$DIST"
+  zip -q lambda.zip index.js
+)
+
+AGENTS_YAML="$ROOT/../agents/.bedrock_agentcore.yaml"
+YAML_TOOL="$ROOT/../agents/scripts/agentcore-yaml.py"
+python3 "$YAML_TOOL" "$AGENTS_YAML" --write-tfvars "$TF_DIR/variables.auto.tfvars"
+
+echo "==> Applying Terraform ($ENV)"
+terraform -chdir="$TF_DIR" init -input=false -reconfigure
+terraform -chdir="$TF_DIR" apply -input=false -auto-approve -var-file=terraform.tfvars
+
+FUNCTION_NAME="$(terraform -chdir="$TF_DIR" output -raw function_name)"
+FUNCTION_URL="$(terraform -chdir="$TF_DIR" output -raw function_url)"
+
+echo "Done. Function URL (IAM, use CloudFront): $FUNCTION_URL"
+echo "Function: $FUNCTION_NAME"

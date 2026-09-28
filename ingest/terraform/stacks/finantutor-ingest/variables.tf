@@ -19,16 +19,6 @@ variable "lambda_zip_path" {
   type        = string
 }
 
-variable "table_name" {
-  description = "Finantutor application table for material status updates"
-  type        = string
-}
-
-variable "table_arn" {
-  description = "Finantutor application table ARN"
-  type        = string
-}
-
 variable "tags" {
   description = "Common tags to apply to all resources"
   type        = map(string)

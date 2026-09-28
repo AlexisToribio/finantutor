@@ -1,2 +1,0 @@
-Validating: docs/diagrams/finantutor-aws.drawio
-PASS — No errors found.

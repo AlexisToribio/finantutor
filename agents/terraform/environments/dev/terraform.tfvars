@@ -1,0 +1,5 @@
+aws_region   = "us-east-1"
+project_name = "finantutor"
+environment  = "dev"
+agent_name   = "finantutor"
+model_id     = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"

@@ -1,0 +1,181 @@
+.thread {
+  flex: 1;
+  min-height: 310px;
+  max-height: min(52vh, 510px);
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  margin: 1.5rem 0 1rem;
+  padding: 0.1rem 0.35rem 0.8rem 0;
+  scroll-behavior: smooth;
+}
+
+.empty-state {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 0.45rem;
+  flex: 1;
+  min-height: 250px;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+.empty-state p {
+  margin: 0;
+  color: var(--ink);
+  font-family: "Newsreader", Georgia, serif;
+  font-size: 1.65rem;
+}
+
+.empty-state > span:last-child {
+  max-width: 28rem;
+}
+
+.empty-mark {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 0.35rem;
+  color: var(--green);
+  background: var(--green-pale);
+  border-radius: 15px;
+  font-family: "Newsreader", Georgia, serif;
+  font-size: 1.8rem;
+}
+
+.bubble {
+  max-width: min(82%, 690px);
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 4px 14px 14px 14px;
+  background: #f5f7f3;
+  animation: arrive 180ms ease-out both;
+}
+
+.bubble.teacher {
+  align-self: flex-end;
+  color: white;
+  background: var(--green);
+  border-color: var(--green);
+  border-radius: 14px 4px 14px 14px;
+}
+
+.bubble.agent {
+  align-self: flex-start;
+  background: var(--surface);
+}
+
+.who {
+  display: block;
+  margin-bottom: 0.32rem;
+  color: var(--ink-soft);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.bubble.teacher .who {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.bubble p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.md p {
+  margin: 0 0 0.7em;
+  white-space: normal;
+}
+
+.md p:last-child {
+  margin-bottom: 0;
+}
+
+.md strong {
+  color: var(--green-dark);
+  font-weight: 700;
+}
+
+.md ul,
+.md ol {
+  margin: 0.4em 0 0.7em;
+  padding-left: 1.3rem;
+}
+
+.md li {
+  margin: 0.25em 0;
+}
+
+.md a {
+  color: var(--green);
+  text-underline-offset: 0.15em;
+}
+
+.pending {
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
+.composer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 0.7rem;
+  padding: 0.65rem;
+  background: #f7f8f5;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+}
+
+textarea {
+  min-height: 3.3rem;
+  max-height: 10rem;
+  resize: vertical;
+  border: 0;
+  background: transparent;
+}
+
+textarea:focus-visible {
+  outline-offset: -2px;
+}
+
+.composer .primary {
+  margin-bottom: 0.1rem;
+}
+
+@keyframes arrive {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (max-width: 700px) {
+  .thread {
+    max-height: none;
+    min-height: 38vh;
+    margin-top: 1.1rem;
+  }
+
+  .bubble {
+    max-width: 92%;
+  }
+
+  .composer {
+    grid-template-columns: 1fr;
+  }
+
+  .composer .primary {
+    justify-self: end;
+  }
+}

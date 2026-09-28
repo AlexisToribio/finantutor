@@ -1,0 +1,67 @@
+.books-panel {
+  gap: 0.4rem;
+}
+
+.section-index {
+  margin-bottom: 0.5rem;
+}
+
+.book-form {
+  display: grid;
+  gap: 1rem;
+  width: min(560px, 100%);
+  margin-top: 1.7rem;
+}
+
+.drop {
+  display: grid;
+  justify-items: center;
+  gap: 0.85rem;
+  min-height: 205px;
+  padding: 1.6rem;
+  color: var(--green-dark);
+  background: #f8faf7;
+  border: 1px dashed #95ada1;
+  border-radius: 15px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.drop::before {
+  content: "PDF";
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 62px;
+  color: var(--copper);
+  background: #f7eee8;
+  border: 1px solid #ead5c9;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  letter-spacing: 0.12em;
+}
+
+.drop input[type="file"] {
+  max-width: 350px;
+  padding: 0.4rem;
+  border: 0;
+  background: transparent;
+  font-weight: 400;
+}
+
+.file-limit {
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  font-weight: 400;
+}
+
+.file-name {
+  overflow-wrap: anywhere;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  font-weight: 400;
+}
+
+.pending-note {
+  margin-top: 1rem;
+}

@@ -30,7 +30,5 @@ module "books_ingest_lambda" {
   vector_index_name  = module.teacher_books_s3vectors.index_name
   embedding_model_id = var.embedding_model_id
   lambda_zip_path    = var.lambda_zip_path
-  table_name         = var.table_name
-  table_arn          = var.table_arn
   tags               = var.tags
 }

@@ -1,122 +1,178 @@
+import { BedrockAgentCoreClient } from "@aws-sdk/client-bedrock-agentcore";
 import serverless from "serverless-http";
-import { compose } from "./infrastructure/composition.js";
-import { createApp } from "./infrastructure/http/create-app.js";
-import { chatInput } from "./application/chat.js";
-import { AppError } from "./domain/contracts.js";
-import { ZodError } from "zod";
 
-declare const awslambda: {
-  streamifyResponse: (
-    handler: (event: any, stream: any, context: any) => Promise<void>,
-  ) => unknown;
-  HttpResponseStream: { from: (stream: any, metadata: object) => any };
+import { ListConversationMessages } from "./application/list-conversation-messages.js";
+import {
+  AGENT_UNAVAILABLE,
+  PostConversationMessage,
+} from "./application/post-conversation-message.js";
+import { RequestBookUpload } from "./application/request-book-upload.js";
+import { SdkAgentRuntime } from "./infrastructure/agentcore/sdk-agent-runtime.js";
+import { CognitoAccessTokenVerifier } from "./infrastructure/auth/cognito-jwt-verifier.js";
+import { DynamoConversationStore } from "./infrastructure/dynamodb/dynamo-conversation-store.js";
+import { createApp } from "./infrastructure/http/create-app.js";
+import { responseHeaders } from "./infrastructure/http/response-headers.js";
+import { errorMessage, logger } from "./infrastructure/observability/logger.js";
+import { S3IncomingObjectStore } from "./infrastructure/s3/s3-incoming-object-store.js";
+
+type FunctionUrlEvent = {
+  rawPath: string;
+  body?: string;
+  isBase64Encoded?: boolean;
+  headers?: Record<string, string | undefined>;
+  requestContext: { http: { method: string } };
 };
-const dependencies = compose();
-const buffered = serverless(createApp(dependencies));
-export const handler = awslambda.streamifyResponse(
-  async (event, rawStream, context) => {
-    const match =
-      /^\/api\/v1\/courses\/([^/]+)\/conversations\/([^/]+)\/messages$/.exec(
-        event.rawPath ?? "",
-      );
-    if (event.requestContext?.http?.method !== "POST" || !match) {
-      const requestEvent = {
-        ...event,
-        headers: {
-          ...event.headers,
-          "x-request-id": event.requestContext?.requestId ?? context.awsRequestId,
-        },
-      };
-      const result = (await buffered(requestEvent, context)) as {
-        statusCode: number;
-        headers: object;
-        body: string;
-        isBase64Encoded?: boolean;
-      };
-      // Lambda response streaming frames the body as chunks; forwarding Express's
-      // Content-Length (or hop-by-hop headers) makes the origin response invalid.
-      const streamingHeaders = Object.fromEntries(
-        Object.entries(result.headers as Record<string, string>).filter(
-          ([name]) =>
-            ![
-              "content-length",
-              "transfer-encoding",
-              "connection",
-              "keep-alive",
-              "proxy-authenticate",
-              "proxy-authorization",
-              "te",
-              "trailer",
-              "upgrade",
-            ].includes(name.toLowerCase()),
-        ),
-      );
-      const stream = awslambda.HttpResponseStream.from(rawStream, {
-        statusCode: result.statusCode,
-        headers: streamingHeaders,
-      });
-      stream.end(
-        result.isBase64Encoded
-          ? Buffer.from(result.body, "base64")
-          : result.body,
-      );
+
+type BufferedResult = {
+  statusCode?: number;
+  headers?: Record<string, string | string[] | undefined>;
+  body?: string;
+  isBase64Encoded?: boolean;
+};
+
+const region = process.env.AWS_REGION ?? "us-east-1";
+const runtimeArn = process.env.AGENTCORE_RUNTIME_ARN ?? "";
+const qualifier = process.env.AGENTCORE_QUALIFIER ?? "DEFAULT";
+const tableName = process.env.CONVERSATIONS_TABLE ?? "";
+const booksBucket = process.env.BOOKS_BUCKET ?? "";
+const userPoolId = process.env.COGNITO_USER_POOL_ID ?? "";
+const clientId = process.env.COGNITO_CLIENT_ID ?? "";
+if (!userPoolId || !clientId) {
+  throw new Error("COGNITO_USER_POOL_ID and COGNITO_CLIENT_ID are required");
+}
+if (!booksBucket) {
+  throw new Error("BOOKS_BUCKET is required");
+}
+const store = DynamoConversationStore.fromEnv(tableName, region);
+const runtime = new SdkAgentRuntime(
+  new BedrockAgentCoreClient({ region }),
+  runtimeArn,
+  qualifier,
+);
+const verifier = CognitoAccessTokenVerifier.fromEnv(userPoolId, clientId);
+const postMessage = new PostConversationMessage(runtime, store);
+
+const app = createApp(
+  postMessage,
+  new ListConversationMessages(store),
+  new RequestBookUpload(new S3IncomingObjectStore(booksBucket)),
+  verifier,
+);
+
+const buffered = serverless(app) as (
+  event: FunctionUrlEvent,
+  context: unknown,
+) => Promise<BufferedResult>;
+
+function header(event: FunctionUrlEvent, name: string): string | undefined {
+  const headers = event.headers ?? {};
+  const found = Object.entries(headers).find(([key]) => key.toLowerCase() === name);
+  return found?.[1];
+}
+
+function isChatPost(event: FunctionUrlEvent): boolean {
+  return (
+    event.requestContext.http.method === "POST" &&
+    /\/api\/v1\/conversations\/[^/]+\/messages$/.test(event.rawPath)
+  );
+}
+
+function writeJson(
+  responseStream: NodeJS.WritableStream,
+  statusCode: number,
+  body: unknown,
+): void {
+  const stream = awslambda.HttpResponseStream.from(responseStream, {
+    statusCode,
+    headers: responseHeaders(undefined, "application/json"),
+  });
+  stream.write(JSON.stringify(body));
+  stream.end();
+}
+
+async function streamChat(
+  event: FunctionUrlEvent,
+  responseStream: NodeJS.WritableStream,
+): Promise<void> {
+  const tokenHeader = header(event, "x-authorization") ?? header(event, "authorization");
+  const token = tokenHeader?.startsWith("Bearer ") ? tokenHeader.slice("Bearer ".length) : "";
+  let userId = "";
+  if (token) {
+    try {
+      userId = (await verifier.verify(token)).userId;
+    } catch {
+      userId = "";
+    }
+  }
+  if (!userId) {
+    writeJson(responseStream, 401, { detail: "Unauthorized" });
+    return;
+  }
+
+  const rawBody = event.isBase64Encoded
+    ? Buffer.from(event.body ?? "", "base64").toString("utf8")
+    : (event.body ?? "");
+  let prompt = "";
+  try {
+    const parsed = JSON.parse(rawBody) as { prompt?: unknown };
+    prompt = typeof parsed.prompt === "string" ? parsed.prompt : "";
+  } catch {
+    prompt = "";
+  }
+  const sessionId = event.rawPath.split("/").at(-2) ?? "";
+  let opened = false;
+  let stream: (NodeJS.WritableStream & { end: () => void }) | undefined;
+  try {
+    for await (const agentEvent of postMessage.execute(userId, sessionId, prompt)) {
+      if (!opened) {
+        stream = awslambda.HttpResponseStream.from(responseStream, {
+          statusCode: 200,
+          headers: responseHeaders(
+            {
+              "cache-control": "no-cache, no-transform",
+              "x-accel-buffering": "no",
+            },
+            "text/event-stream; charset=utf-8",
+          ),
+        });
+        opened = true;
+      }
+      stream?.write(`data: ${JSON.stringify(agentEvent)}\n\n`);
+    }
+    if (!opened || !stream) {
+      writeJson(responseStream, 502, { detail: AGENT_UNAVAILABLE });
       return;
     }
-    let stream: any;
-    try {
-      const owner = await dependencies.authenticate(
-        event.headers?.["x-authorization"] ?? event.headers?.authorization,
-      );
-      const body = event.isBase64Encoded
-        ? Buffer.from(event.body ?? "", "base64").toString()
-        : (event.body ?? "");
-      const input = chatInput.parse(JSON.parse(body));
-      for await (const item of dependencies.chat.execute(
-        owner,
-        match[1],
-        match[2],
-        input,
-      )) {
-        stream ??= awslambda.HttpResponseStream.from(rawStream, {
-          statusCode: 200,
-          headers: {
-            "content-type": "text/event-stream; charset=utf-8",
-            "cache-control": "no-cache, no-transform",
-          },
-        });
-        stream.write(`data: ${JSON.stringify(item)}\n\n`);
-      }
-      stream?.end();
-    } catch (error) {
-      console.error(
-        "stream_failure",
-        error instanceof Error ? error.message : "unknown",
-      );
-      if (stream) {
-        stream.write(
-          `data: ${JSON.stringify({ type: "error", message: "No se pudo completar la respuesta." })}\n\n`,
-        );
-        stream.end();
-      } else {
-        const status =
-          error instanceof AppError
-            ? error.status
-            : error instanceof ZodError || error instanceof SyntaxError
-              ? 422
-              : 502;
-        stream = awslambda.HttpResponseStream.from(rawStream, {
-          statusCode: status,
-          headers: { "content-type": "application/json" },
-        });
-        stream.end(
-          JSON.stringify({
-            detail:
-              error instanceof AppError
-                ? error.message
-                : "No se pudo completar la solicitud.",
-          }),
-        );
-      }
+    stream.end();
+  } catch (error) {
+    const message = errorMessage(error);
+    if (!opened) {
+      const status =
+        message === "prompt is required" || message === "session_id is required" ? 422 : 502;
+      writeJson(responseStream, status, {
+        detail: status === 422 ? message : AGENT_UNAVAILABLE,
+      });
+      return;
     }
-  },
-);
+    logger.error("chat.stream.failed", { error: message });
+    stream?.write(`data: ${JSON.stringify({ type: "error", message: AGENT_UNAVAILABLE })}\n\n`);
+    stream?.end();
+  }
+}
+
+export const handler = awslambda.streamifyResponse(async (event, responseStream, context) => {
+  const httpEvent = event as FunctionUrlEvent;
+  if (!isChatPost(httpEvent)) {
+    const result = await buffered(httpEvent, context);
+    const stream = awslambda.HttpResponseStream.from(responseStream, {
+      statusCode: result.statusCode ?? 200,
+      headers: responseHeaders(result.headers, "application/json"),
+    });
+    if (result.body) {
+      stream.write(result.isBase64Encoded ? Buffer.from(result.body, "base64") : result.body);
+    }
+    stream.end();
+    return;
+  }
+  await streamChat(httpEvent, responseStream);
+});

@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Arquitectura de Finantutor",
+    "output": "finantutor-aws.html",
+    "quality_profile": "showcase",
+    "viewBox": [1380, 790]
+  },
+  "components": [
+    { "id": "student", "type": "external", "label": "Estudiante UPC", "sublabel": "Maestría en IA", "pos": [35, 350], "size": [150, 64] },
+    { "id": "cloudfront", "type": "cloud", "label": "Amazon CloudFront", "sublabel": "SPA + rutas /api/*", "pos": [220, 350], "size": [170, 72] },
+    { "id": "frontend", "type": "frontend", "label": "Amazon S3 · SPA", "sublabel": "Interfaz Tutor / Material", "pos": [220, 600], "size": [170, 72] },
+    { "id": "cognito", "type": "security", "label": "Amazon Cognito", "sublabel": "User Pool · JWT", "pos": [470, 110], "size": [170, 72] },
+    { "id": "bff", "type": "backend", "label": "AWS Lambda · BFF", "sublabel": "Node.js 24 · Function URL", "pos": [470, 350], "size": [180, 76] },
+    { "id": "dynamo", "type": "database", "label": "Amazon DynamoDB", "sublabel": "Historial del chat", "pos": [760, 110], "size": [180, 72] },
+    { "id": "agentcore", "type": "backend", "label": "Amazon Bedrock AgentCore", "sublabel": "Un agente tutor · Guardrails", "pos": [760, 350], "size": [205, 76] },
+    { "id": "bedrock", "type": "cloud", "label": "Amazon Bedrock", "sublabel": "Claude Sonnet 4.5 · Titan V2", "pos": [1085, 110], "size": [215, 72] },
+    { "id": "memory", "type": "database", "label": "AgentCore Memory", "sublabel": "Contexto de corto plazo", "pos": [1085, 500], "size": [195, 72] },
+    { "id": "books", "type": "cloud", "label": "Amazon S3 · Materiales", "sublabel": "incoming/ y books/", "pos": [470, 600], "size": [190, 72] },
+    { "id": "ingest", "type": "backend", "label": "AWS Lambda · Ingesta", "sublabel": "Python · fragmenta y genera embeddings", "pos": [760, 600], "size": [220, 72] },
+    { "id": "vectors", "type": "database", "label": "Amazon S3 Vectors", "sublabel": "Índice RAG del curso", "pos": [1085, 600], "size": [205, 72] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "AWS · us-east-1 · stacks Terraform", "wraps": ["cloudfront", "frontend", "cognito", "bff", "dynamo", "agentcore", "bedrock", "memory", "books", "ingest", "vectors"] }
+  ],
+  "connections": [
+    { "id": "browse", "from": "student", "to": "cloudfront", "label": "HTTPS", "variant": "emphasis" },
+    { "id": "static-site", "from": "cloudfront", "to": "frontend", "label": "Sirve la SPA", "fromSide": "bottom", "toSide": "top", "labelDy": 22 },
+    { "id": "api-routing", "from": "cloudfront", "to": "bff", "label": "/api/* · SSE", "variant": "emphasis" },
+    { "id": "verify-token", "from": "bff", "to": "cognito", "label": "Valida JWT", "variant": "security", "fromSide": "top", "toSide": "bottom" },
+    { "id": "persist-chat", "from": "bff", "to": "dynamo", "label": "Historial", "fromSide": "right", "toSide": "left" },
+    { "id": "invoke-agent", "from": "bff", "to": "agentcore", "label": "Invoke · SigV4", "variant": "emphasis", "labelAt": [700, 420] },
+    { "id": "generate", "from": "agentcore", "to": "bedrock", "label": "LLM", "variant": "emphasis" },
+    { "id": "session-memory", "from": "agentcore", "to": "memory", "label": "Memoria STM", "fromSide": "bottom", "toSide": "top" },
+    { "id": "presign-pdf", "from": "bff", "to": "books", "label": "Genera URL presignada", "variant": "dashed", "fromSide": "bottom", "toSide": "top" },
+    { "id": "upload-pdf", "from": "frontend", "to": "books", "label": "PUT PDF con URL firmada", "variant": "emphasis", "labelAt": [430, 686] },
+    { "id": "ingest-pdf", "from": "books", "to": "ingest", "label": "Evento S3 · PDF", "variant": "dashed" },
+    { "id": "index-vectors", "from": "ingest", "to": "vectors", "label": "Chunks + embeddings", "variant": "dashed" },
+    { "id": "retrieve-context", "from": "agentcore", "to": "vectors", "label": "Búsqueda semántica", "fromSide": "bottom", "toSide": "top" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Experiencia", "items": ["CloudFront entrega la SPA React desde el bucket privado de S3", "CloudFront enruta /api/* al BFF y transmite el chat por SSE"] },
+    { "dot": "emerald", "title": "Chat con el tutor", "items": ["El BFF valida Cognito, guarda el historial y delega al único runtime AgentCore", "AgentCore usa Bedrock, memoria breve y consulta S3 Vectors"] },
+    { "dot": "amber", "title": "Carga e ingesta de materiales", "items": ["El BFF crea los metadatos y firma una URL presignada; el navegador usa esa URL para hacer el PUT del PDF a S3", "El evento S3 activa Lambda, que fragmenta el PDF, genera embeddings Titan y los indexa en S3 Vectors"] }
+  ]
+}

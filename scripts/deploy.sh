@@ -1,41 +1,70 @@
 #!/usr/bin/env bash
-# Deploy order: ingest → agents → backend → frontend.
+# ingest → agents (Terraform + runtime) → backend → frontend.
+# Creates the Terraform state bucket if it does not exist.
 set -euo pipefail
 
 ENV="dev"
-REGION="us-east-1"
-while (($#)); do
-  case "$1" in
-    dev|prod) ENV="$1" ;;
-    --region) [[ -n "${2:-}" ]] || { echo "--region requires a value" >&2; exit 2; }; REGION="$2"; shift ;;
-    -h|--help) echo "Usage: $0 [dev|prod] [--region REGION]"; exit 0 ;;
-    *) echo "Usage: $0 [dev|prod] [--region REGION]" >&2; exit 2 ;;
+for arg in "$@"; do
+  case "$arg" in
+    dev | prod) ENV="$arg" ;;
+    -h | --help)
+      echo "Usage: $0 [dev|prod]" >&2
+      exit 0
+      ;;
+    *)
+      echo "Usage: $0 [dev|prod]" >&2
+      exit 1
+      ;;
   esac
-  shift
 done
 
-FINANTUTOR_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-source "$FINANTUTOR_ROOT/scripts/common.sh"
-for command in terraform aws pnpm uv agentcore python3 zip; do
-  command -v "$command" >/dev/null || { echo "$command is required" >&2; exit 1; }
-done
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+STATE_BUCKET="finantutor-terraform-state-${ENV}"
+STATE_REGION="us-east-1"
+ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text 2>/dev/null || true)"
 
-finantutor_create_state_bucket "$ENV" "$REGION"
-export FINANTUTOR_STATE_READY=1
-ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
-echo "==> Deploying Finantutor $ENV to AWS account $ACCOUNT_ID in $REGION"
-"$FINANTUTOR_ROOT/ingest/scripts/deploy.sh" "$ENV" --region "$REGION"
-"$FINANTUTOR_ROOT/agents/scripts/deploy.sh" "$ENV" --region "$REGION"
-"$FINANTUTOR_ROOT/backend/scripts/deploy.sh" "$ENV" --region "$REGION"
-"$FINANTUTOR_ROOT/frontend/scripts/deploy.sh" "$ENV" --region "$REGION"
+if ! command -v terraform >/dev/null || ! command -v aws >/dev/null; then
+  echo "terraform and aws CLI are required" >&2
+  exit 1
+fi
 
-POOL_ID="$(terraform -chdir="$FINANTUTOR_ROOT/backend/terraform/environments/$ENV" \
-  output -raw cognito_pool_id)"
-echo "Done. Finantutor: https://$(terraform -chdir="$FINANTUTOR_ROOT/frontend/terraform/environments/$ENV" output -raw domain)"
-echo "Create your Cognito user (replace the email address):"
-printf '%s\n' \
-  "aws cognito-idp admin-create-user \\" \
-  "  --user-pool-id $POOL_ID \\" \
-  "  --username tu-correo@ejemplo.com \\" \
-  "  --user-attributes Name=email,Value=tu-correo@ejemplo.com Name=email_verified,Value=true \\" \
-  "  --region $REGION"
+chmod +x \
+  "$ROOT/ingest/scripts/deploy.sh" \
+  "$ROOT/agents/scripts/deploy-agentcore.sh" \
+  "$ROOT/backend/scripts/deploy.sh" \
+  "$ROOT/frontend/scripts/deploy.sh"
+
+ensure_state_bucket() {
+  if [[ -n "$ACCOUNT_ID" ]] && aws s3api head-bucket \
+    --bucket "$STATE_BUCKET" --expected-bucket-owner "$ACCOUNT_ID" \
+    --region "$STATE_REGION" >/dev/null 2>&1; then
+    echo "==> State bucket s3://$STATE_BUCKET already exists"
+    return 0
+  fi
+  echo "==> Creating state bucket s3://$STATE_BUCKET"
+  if [[ "$STATE_REGION" == "us-east-1" ]]; then
+    aws s3api create-bucket --bucket "$STATE_BUCKET" --region "$STATE_REGION"
+  else
+    aws s3api create-bucket --bucket "$STATE_BUCKET" --region "$STATE_REGION" \
+      --create-bucket-configuration "LocationConstraint=${STATE_REGION}"
+  fi
+  aws s3api put-bucket-versioning --bucket "$STATE_BUCKET" \
+    --versioning-configuration Status=Enabled
+  aws s3api put-public-access-block --bucket "$STATE_BUCKET" \
+    --public-access-block-configuration \
+    "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"
+}
+
+echo "==> Deploy all ($ENV): ingest → agents → backend → frontend"
+ensure_state_bucket
+"$ROOT/ingest/scripts/deploy.sh" "$ENV"
+"$ROOT/agents/scripts/deploy-agentcore.sh" "$ENV"
+"$ROOT/backend/scripts/deploy.sh" "$ENV"
+"$ROOT/frontend/scripts/deploy.sh" "$ENV"
+
+echo "Done. All $ENV stacks deployed."
+echo "Create a student account:"
+echo "  aws cognito-idp admin-create-user \\"
+echo "    --user-pool-id \"\$(terraform -chdir=$ROOT/backend/terraform/environments/$ENV output -raw cognito_user_pool_id)\" \\"
+echo "    --username estudiante@upc.edu.pe \\"
+echo "    --user-attributes Name=email,Value=estudiante@upc.edu.pe Name=email_verified,Value=true"

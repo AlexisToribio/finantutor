@@ -1,36 +1,34 @@
 variable "aws_region" {
-  type    = string
-  default = "us-east-1"
-}
-
-variable "prefix" {
-  type    = string
-  default = "finantutor-prod"
-}
-
-variable "vector_bucket_name" {
+  description = "AWS region for all resources"
   type        = string
-  description = "S3 Vectors bucket name from the ingest stack"
+  default     = "us-east-1"
 }
 
-variable "vector_index_name" {
+variable "project_name" {
+  description = "Project name used for resource naming and tagging"
   type        = string
-  description = "S3 Vectors index name from the ingest stack"
+  default     = "finantutor"
 }
 
-variable "vector_index_arn" {
+variable "environment" {
+  description = "Deployment environment"
   type        = string
-  description = "S3 Vectors index ARN from the ingest stack"
+  default     = "prod"
+
+  validation {
+    condition     = var.environment == "prod"
+    error_message = "This stack is only for the prod environment."
+  }
 }
 
-variable "embedding_model_id" {
+variable "agent_name" {
+  description = "Bedrock AgentCore agent name"
   type        = string
-  description = "Titan Text Embeddings model ID"
-  default     = "amazon.titan-embed-text-v2:0"
+  default     = "finantutor"
 }
 
 variable "model_id" {
+  description = "Bedrock model used by the course tutor"
   type        = string
-  description = "Bedrock tutor model or inference profile"
   default     = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
 }

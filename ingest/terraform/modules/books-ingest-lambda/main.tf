@@ -12,7 +12,7 @@ resource "aws_iam_role" "ingest" {
 
 resource "aws_iam_policy" "ingest" {
   name        = "${var.function_name}-policy"
-  description = "Index Finantutor course PDFs from S3 into S3 Vectors with Titan embeddings"
+  description = "Ingest teacher PDFs: incoming S3, canonical books/, Titan, PutVectors"
   policy      = data.aws_iam_policy_document.ingest.json
   tags        = var.tags
 }
@@ -25,8 +25,8 @@ resource "aws_iam_role_policy_attachment" "ingest" {
 resource "aws_lambda_function" "ingest" {
   function_name    = var.function_name
   role             = aws_iam_role.ingest.arn
-  runtime          = "python3.12"
-  handler          = "finantutor_ingest.infrastructure.aws.handler"
+  runtime          = "python3.13"
+  handler          = "ingest.handler"
   filename         = local.lambda_zip
   source_code_hash = local.lambda_hash
   timeout          = 900
@@ -34,11 +34,10 @@ resource "aws_lambda_function" "ingest" {
 
   environment {
     variables = {
-      MATERIALS_BUCKET   = var.books_bucket_name
+      BOOKS_BUCKET       = var.books_bucket_name
       VECTOR_BUCKET      = var.vector_bucket_name
       VECTOR_INDEX       = var.vector_index_name
       EMBEDDING_MODEL_ID = var.embedding_model_id
-      APP_TABLE          = var.table_name
     }
   }
 

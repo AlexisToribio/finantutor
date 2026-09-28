@@ -1,5 +1,0 @@
-strands-agents>=1.0
-bedrock-agentcore>=1.0.3
-boto3>=1.43.64
-python-dotenv>=1.0
-pydantic>=2.0

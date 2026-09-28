@@ -1,14 +1,22 @@
 variable "aws_region" {
-  type    = string
-  default = "us-east-1"
+  description = "AWS region for all resources"
+  type        = string
+  default     = "us-east-1"
 }
-variable "prefix" {
-  type    = string
-  default = "finantutor-dev"
+
+variable "project_name" {
+  description = "Project name used for resource naming and tagging"
+  type        = string
+  default     = "finantutor"
 }
-variable "function_url" {
-  type = string
-}
-variable "function_name" {
-  type = string
+
+variable "environment" {
+  description = "Deployment environment"
+  type        = string
+  default     = "dev"
+
+  validation {
+    condition     = var.environment == "dev"
+    error_message = "This stack is only for the dev environment."
+  }
 }

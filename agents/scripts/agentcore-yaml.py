@@ -1,107 +1,96 @@
 #!/usr/bin/env python3
-"""Read and update AgentCore CLI configuration without a YAML dependency."""
+"""Read or clear runtime ids in .bedrock_agentcore.yaml without PyYAML."""
+
+from __future__ import annotations
 
 import argparse
 from pathlib import Path
 
 
-def agent_lines(text: str, name: str) -> list[str]:
-    lines = text.splitlines(keepends=True)
-    start = next(
-        (i for i, line in enumerate(lines) if line.rstrip() == f"  {name}:"), None
-    )
-    if start is None:
-        return []
-    end = next(
-        (
-            i
-            for i in range(start + 1, len(lines))
-            if lines[i].startswith("  ") and not lines[i].startswith("    ")
-        ),
-        len(lines),
-    )
-    return lines[start:end]
-
-
-def value(lines: list[str], key: str) -> str:
-    for line in lines:
+def yaml_value(path: Path, key: str) -> str:
+    for line in path.read_text().splitlines():
         stripped = line.lstrip()
         if stripped.startswith(f"{key}:"):
             return stripped.split(":", 1)[1].strip().strip("\"'")
     return ""
 
 
-def set_agent_value(text: str, name: str, key: str, new_value: str) -> str:
-    lines = text.splitlines(keepends=True)
-    start = next(
-        (i for i, line in enumerate(lines) if line.rstrip() == f"  {name}:"), None
-    )
-    if start is None:
-        return text
-    end = next(
-        (
-            i
-            for i in range(start + 1, len(lines))
-            if lines[i].startswith("  ") and not lines[i].startswith("    ")
-        ),
-        len(lines),
-    )
-    for i in range(start + 1, end):
-        stripped = lines[i].lstrip()
+def _set_key(text: str, key: str, value: str) -> str:
+    lines = []
+    for line in text.splitlines(keepends=True):
+        stripped = line.lstrip()
         if stripped.startswith(f"{key}:"):
-            indent = lines[i][: len(lines[i]) - len(stripped)]
-            newline = "\n" if lines[i].endswith("\n") else ""
-            lines[i] = f"{indent}{key}: {new_value}{newline}"
+            indent = line[: len(line) - len(stripped)]
+            nl = "\n" if line.endswith("\n") else ""
+            line = f"{indent}{key}: {value}{nl}"
+        lines.append(line)
     return "".join(lines)
 
 
-def relativize(path: Path) -> None:
+def clear_runtime_ids(path: Path) -> None:
     text = path.read_text()
+    for key in ("agent_id", "agent_arn"):
+        text = _set_key(text, key, "null")
+    path.write_text(text)
+
+
+def _relative_to_yaml_dir(raw: str, root: Path) -> str:
+    if not raw or raw == "null":
+        return raw
+    candidate = Path(raw)
+    resolved = candidate.resolve() if candidate.is_absolute() else (root / candidate).resolve()
+    try:
+        rel = resolved.relative_to(root)
+    except ValueError:
+        return candidate.name or raw
+    posix = rel.as_posix()
+    return "." if posix in ("", ".") else posix
+
+
+def relativize_paths(path: Path) -> None:
+    """Rewrite entrypoint/source_path so they are relative to the YAML directory."""
     root = path.parent.resolve()
-    for key in ("entrypoint", "source_path"):
-        raw = value(text.splitlines(), key)
-        if not raw or raw == "null":
-            continue
-        candidate = Path(raw)
-        resolved = candidate.resolve() if candidate.is_absolute() else (root / candidate).resolve()
-        try:
-            raw = resolved.relative_to(root).as_posix() or "."
-        except ValueError:
-            raw = candidate.name or raw
-        lines = text.splitlines(keepends=True)
-        for index, line in enumerate(lines):
-            stripped = line.lstrip()
-            if stripped.startswith(f"{key}:"):
-                indent = line[: len(line) - len(stripped)]
-                newline = "\n" if line.endswith("\n") else ""
-                lines[index] = f"{indent}{key}: {raw}{newline}"
-                break
-        text = "".join(lines)
+    text = path.read_text()
+    entry = _relative_to_yaml_dir(yaml_value(path, "entrypoint"), root)
+    source = _relative_to_yaml_dir(yaml_value(path, "source_path"), root)
+    if entry:
+        text = _set_key(text, "entrypoint", entry)
+    if source:
+        text = _set_key(text, "source_path", source)
     path.write_text(text)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("yaml", type=Path)
+    parser.add_argument("yaml")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--get")
     group.add_argument("--clear-runtime", action="store_true")
     group.add_argument("--relativize", action="store_true")
-    parser.add_argument("--agent")
+    group.add_argument("--write-tfvars")
     args = parser.parse_args()
-    if not args.yaml.is_file():
+    path = Path(args.yaml)
+    if not path.is_file():
+        if args.write_tfvars:
+            print("No .bedrock_agentcore.yaml; deploy agents first", file=sys.stderr)
+            return 1
         return 0
-    text = args.yaml.read_text()
+    if args.clear_runtime:
+        clear_runtime_ids(path)
+        return 0
     if args.relativize:
-        relativize(args.yaml)
-    elif args.clear_runtime:
-        if args.agent:
-            for key in ("agent_id", "agent_arn"):
-                text = set_agent_value(text, args.agent, key, "null")
-            args.yaml.write_text(text)
-    else:
-        lines = agent_lines(text, args.agent) if args.agent else text.splitlines()
-        print(value(lines, args.get), end="")
+        relativize_paths(path)
+        return 0
+    if args.write_tfvars:
+        arn = yaml_value(path, "agent_arn")
+        if not arn or arn == "null":
+            print("No agent_arn in YAML; deploy agents first", file=sys.stderr)
+            return 1
+        dest = Path(args.write_tfvars)
+        dest.write_text(f'agent_runtime_arn = "{arn}"\n')
+        print(f"Wrote {dest} ({arn})")
+        return 0
+    print(yaml_value(path, args.get), end="")
     return 0
 
 

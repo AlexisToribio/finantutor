@@ -1,85 +1,106 @@
-import type { FormEvent, RefObject } from "react";
-import Markdown from "react-markdown";
-import remarkMath from "remark-math";
-import rehypeKatex from "rehype-katex";
-import { openSource, type Citation, type Material, type Message } from "../../api";
+import { lazy, Suspense, type FormEvent } from "react";
+
+import { useChatSession } from "./useChatSession";
+
+const AgentMarkdown = lazy(async () => {
+  const module = await import("./AgentMarkdown");
+  return { default: module.AgentMarkdown };
+});
 
 type Props = {
-  courseId: string;
-  title: string;
-  messages: Message[];
-  materials: Material[];
-  prompt: string;
-  setPrompt: (value: string) => void;
-  busy: boolean;
-  status: string;
-  onSend: (event: FormEvent) => void;
-  onNewConversation: () => void;
-  onError: (message: string) => void;
-  bottom: RefObject<HTMLDivElement | null>;
+  sessionId: string;
 };
 
-export function ChatPanel({
-  courseId, title, messages, materials, prompt, setPrompt, busy, status,
-  onSend, onNewConversation, onError, bottom,
-}: Props) {
+export function ChatPanel({ sessionId }: Props) {
+  const {
+    turns,
+    draft,
+    setDraft,
+    pending,
+    statusText,
+    hydrating,
+    error,
+    endRef,
+    send,
+  } = useChatSession(sessionId);
+
+  function onSubmit(event: FormEvent) {
+    event.preventDefault();
+    void send();
+  }
+
   return (
-    <section className="chat-section">
-      <div className="chat-toolbar">
-        <span>{title}</span>
-        <button className="text-button" disabled={busy} onClick={onNewConversation}>
-          Nueva conversación ↗
-        </button>
-      </div>
-      <div className="messages" aria-label="Conversación con el tutor">
-        {!messages.length && (
-          <div className="welcome">
-            <div className="tutor-seal">ƒ</div>
-            <h2>Empecemos por lo que<br />quieres entender.</h2>
-            <p>Podemos desarrollar una idea, practicar un caso o revisar tus pasos. Comparte los datos y el contexto que tengas.</p>
-            <div className="starters">
-              {["¿Cómo se interpreta el VAN?", "Ayúdame a revisar mi procedimiento", "Quiero practicar con un caso"].map((text) => (
-                <button key={text} onClick={() => setPrompt(text)}>{text}<span>↗</span></button>
-              ))}
-            </div>
-            {!materials.some((material) => material.status === "ready") && (
-              <p className="source-note">Añade el sílabo o la teoría en Sílabo y materiales para trabajar con las fuentes del curso.</p>
-            )}
+    <section className="panel chat-panel" aria-labelledby="chat-heading">
+      <header className="panel-head">
+        <div>
+          <h2 id="chat-heading">Conversación</h2>
+          <p className="lede">
+            Consulta los conceptos del curso y profundiza en los materiales.
+          </p>
+        </div>
+      </header>
+
+      <div className="thread" role="log" aria-live="polite">
+        {hydrating ? (
+          <p className="empty-line">Cargando la conversación…</p>
+        ) : turns.length === 0 && !pending ? (
+          <div className="empty-state">
+            <span className="empty-mark" aria-hidden="true">∑</span>
+            <p>¿Qué concepto financiero quieres entender mejor?</p>
+            <span>Pregunta sobre flujos de caja, VAN, TIR o evaluación de proyectos.</span>
           </div>
-        )}
-        {messages.map((message) => (
-          <article key={message.id} className={`message ${message.role} ${message.failed ? "failed" : ""}`}>
-            <span className="message-author">{message.role === "user" ? "TÚ" : "TUTOR"}{message.pending ? " · elaborando respuesta" : ""}</span>
-            <div className="markdown">
-              <Markdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]} components={{
-                a: ({ href, children }) => <a href={href?.startsWith("https://") ? href : undefined} target="_blank" rel="noopener noreferrer">{children}</a>,
-              }}>{message.body || "Pensando en tu pregunta…"}</Markdown>
-            </div>
-            {Boolean(message.citations?.length) && (
-              <div className="citations">
-                <span>MATERIALES CONSULTADOS</span>
-                {message.citations?.map((citation: Citation) => (
-                  <button key={citation.source_id} onClick={() => void openSource(courseId, citation).catch((error) => onError(error.message))}>
-                    [{citation.source_id}] {citation.title}{citation.page ? ` · p. ${citation.page}` : ""} ↗
-                  </button>
-                ))}
-              </div>
+        ) : null}
+        {turns.map((turn, index) => (
+          <article
+            key={`${turn.role}-${index}`}
+            className={turn.role === "teacher" ? "bubble teacher" : "bubble agent"}
+          >
+            <span className="who">
+              {turn.role === "teacher" ? "Tú" : "Tutor"}
+            </span>
+            {turn.role === "agent" ? (
+              <Suspense fallback={<p>…</p>}>
+                <AgentMarkdown text={turn.text} />
+              </Suspense>
+            ) : (
+              <p>{turn.text}</p>
             )}
-            {message.failed && <p className="source-note">Respuesta incompleta; puedes enviar de nuevo tu pregunta.</p>}
           </article>
         ))}
-        {busy && <p className="thinking" role="status">{status || "Preparando una explicación…"}</p>}
-        <div ref={bottom} />
+        {pending ? (
+          <p className="bubble agent pending">{statusText}</p>
+        ) : null}
+        <div ref={endRef} />
       </div>
-      <form className="composer" onSubmit={onSend}>
-        <label className="sr-only" htmlFor="prompt">Tu pregunta al tutor</label>
-        <textarea id="prompt" value={prompt} maxLength={12000} onChange={(event) => setPrompt(event.target.value)} placeholder="Escribe una pregunta o comparte tu procedimiento…" rows={3} disabled={busy} />
-        <div className="composer-bottom">
-          <span className="composer-hint">Respuestas guiadas por tus materiales</span>
-          <button className="primary" disabled={busy || !prompt.trim()}>{busy ? "Elaborando…" : "Preguntar →"}</button>
-        </div>
+
+      {error ? (
+        <p className="banner error" role="alert">
+          {error}
+        </p>
+      ) : null}
+
+      <form className="composer" onSubmit={onSubmit}>
+        <label className="sr-only" htmlFor="prompt">
+          Mensaje
+        </label>
+        <textarea
+          id="prompt"
+          rows={3}
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          placeholder="Escribe tu pregunta sobre el curso…"
+          disabled={pending}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.shiftKey) {
+              event.preventDefault();
+              void send();
+            }
+          }}
+        />
+        <button type="submit" className="primary" disabled={pending || !draft.trim()}>
+          Consultar
+        </button>
       </form>
-      <p className="fine-print">Comprueba los supuestos y consulta las fuentes. El tutor acompaña tu aprendizaje.</p>
     </section>
   );
 }

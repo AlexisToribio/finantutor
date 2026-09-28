@@ -53,16 +53,6 @@ variable "lambda_zip_path" {
   type        = string
 }
 
-variable "table_name" {
-  description = "Finantutor catalogue table name for material status updates"
-  type        = string
-}
-
-variable "table_arn" {
-  description = "Finantutor catalogue table ARN for material status updates"
-  type        = string
-}
-
 variable "tags" {
   description = "Common tags"
   type        = map(string)

@@ -1,86 +1,81 @@
 # Finantutor
 
-Tutor personal para **Modelos financieros y evaluación de proyectos**, de la maestría en Inteligencia Artificial de la UPC. El contexto docente se construye con el sílabo y los materiales que subas y confirmes. No incluye material oficial ni presume conocer los criterios de tu profesor.
+Tutor conversacional para estudiantes de la Maestría en Inteligencia Artificial de la UPC, enfocado en **Modelos financieros y evaluación de proyectos**. El monorepo mantiene cuatro proyectos independientes:
 
-## Qué implementa
-
-- Interfaz centrada en dos áreas: conversación con el agente y carga de sílabo/materiales PDF.
-- Respuestas con streaming, historial persistente, citas y enlaces a las fuentes consultadas.
-- Los materiales muestran el estado de preparación y quedan disponibles como contexto de la conversación.
-- VAN, TIR, conversión de tasas efectivas y sensibilidad calculados con `Decimal`, fuera del modelo.
-- Desarrollo local con SQLite y PDFs en disco; infraestructura AWS con Cognito, Lambda, AgentCore, DynamoDB, S3, S3 Vectors y CloudFront.
-
-## Estructura
-
-```text
-frontend/  React + TypeScript + Vite
-backend/   BFF Express + TypeScript; autorización, sesiones y persistencia
-agents/    Python + Strands; un TutorAgent y herramientas
-ingest/   Python + pypdf; preparación determinista de documentos
+```
+finantutor/
+  frontend/  # React + Vite: Tutor y Subir material
+  backend/   # BFF TypeScript: autenticación, chat y URL de carga firmada
+  agents/    # Un tutor Strands en Bedrock AgentCore con búsqueda RAG
+  ingest/    # Indexación de PDFs en S3 Vectors
 ```
 
-Cada componente conserva `terraform/modules/` y `terraform/environments/{dev,prod}/`, siguiendo Educagent. [Arquitectura y decisiones](docs/architecture.md), [diagramas HTML y Draw.io](docs/diagrams/README.md), [contrato API](docs/api.md), [operación AWS](docs/deployment.md).
+El tutor usa un único modelo conversacional y una herramienta para buscar en los materiales del curso. No genera fichas ni documentos. La memoria de AgentCore mantiene el contexto por sesión; DynamoDB conserva el historial que muestra el chat.
 
-## Arranque local
+## Flujo de materiales
 
-Requisitos: Node **24**, pnpm **9.7.1**, Python **3.12 o superior**, `uv` y credenciales AWS válidas con acceso al modelo configurado en Bedrock. El modo local también invoca Bedrock; no simula las respuestas.
+La interfaz permite subir un PDF (máximo 50 MB). El BFF crea una URL firmada y el navegador envía el archivo directamente a S3. Una Lambda de ingesta extrae texto, lo divide en fragmentos, genera embeddings con Titan y los guarda en S3 Vectors bajo el curso fijo. El tutor consulta ese índice y cita el título y la página cuando están disponibles.
 
-Desde este directorio:
+## Desarrollo local
 
-```bash
-pnpm install --frozen-lockfile
-uv sync --project agents --frozen
-uv sync --project ingest --frozen
-cp frontend/.env.example frontend/.env
-cp backend/.env.example backend/.env
-cp agents/.env.example agents/.env
-```
-
-Configura `AWS_REGION` y `TUTOR_MODEL_ID` en `agents/.env`. Si utilizas un perfil, exporta `AWS_PROFILE` en la terminal del runtime. La región y el identificador deben tener acceso habilitado. No pegues credenciales en los archivos del proyecto.
-
-Abre tres terminales:
+Se requieren Node.js/pnpm, Python/uv, AWS CLI, Terraform y acceso AWS a Bedrock, S3 y S3 Vectors. El stack `ingest` debe existir en AWS para probar cargas y consultas RAG.
 
 ```bash
-# 1. Runtime; conserva este directorio de trabajo para compartir .local
+# Tutor AgentCore
 cd agents
-.venv/bin/python main.py
+cp .env.example .env
+uv sync
+uv run agentcore dev
+
+# BFF, en otra terminal
+cd backend
+cp .env.example .env
+pnpm install
+pnpm dev
+
+# Frontend, en otra terminal
+cd frontend
+cp .env.example .env
+pnpm install
+pnpm dev
 ```
 
+Abre `http://localhost:5173`. El inicio de sesión usa Cognito. El frontend tiene dos secciones: **Tutor** y **Subir material**.
+
+## Modelos
+
+| Uso | Modelo |
+| --- | --- |
+| Tutor conversacional | Claude Sonnet 4.5 (`MODEL_ID`) |
+| Embeddings y búsqueda | Amazon Titan Text Embeddings V2 (`EMBEDDING_MODEL_ID`) |
+
+## Despliegue y destrucción
+
+Desde la raíz del repositorio:
+
 ```bash
-# 2. BFF; desde la raíz de Finantutor
-pnpm dev:backend
+./scripts/deploy.sh dev
+./scripts/destroy.sh dev
 ```
 
-```bash
-# 3. Interfaz; desde la raíz de Finantutor
-pnpm dev:frontend
-```
+El despliegue aplica ingestión, configura y publica el runtime del tutor, y luego aplica backend y frontend. La destrucción sigue el orden inverso. Los scripts muestran el comando para invitar usuarios de Cognito al finalizar el deploy.
 
-Abre `http://localhost:5173`. Registra el curso **Modelos financieros y evaluación de proyectos**, sube el sílabo o un PDF de teoría en **Sílabo y materiales** y espera a que figure como disponible. Luego conversa con el tutor en **Conversar**.
+## Rutas principales del BFF
 
-`LOCAL_TOKEN` y `VITE_LOCAL_TOKEN` deben coincidir. La autenticación local identifica un estudiante de desarrollo y los servidores escuchan en localhost; producción usa Cognito. Los datos quedan en `.local/`, fuera de Git. Un reinicio durante ingesta local puede dejar el material pendiente: vuelve a cargarlo. El adaptador local busca coincidencias de texto; AWS recupera fragmentos desde S3 Vectors.
+| Método | Ruta | Uso |
+| --- | --- | --- |
+| `GET` | `/api/v1/health` | Estado del BFF |
+| `POST` | `/api/v1/conversations/{sessionId}/messages` | Chat en streaming SSE |
+| `GET` | `/api/v1/conversations/{sessionId}/messages` | Historial de la sesión |
+| `POST` | `/api/v1/books/uploads` | Solicita URL firmada para subir un PDF |
 
-### Formatos y límites
-
-PDF con texto seleccionable: máximo 50 MiB, 500 páginas, 100.000 caracteres por página y al menos 20 caracteres en cada página. Se rechazan archivos protegidos, páginas vacías y escaneos; OCR, PPTX, DOCX y XLSX quedan como ampliaciones. Cada nueva carga es una versión independiente e inmutable; no hay borrado ni reemplazo en este MVP.
-
-Tasas como fracciones (`0.10` = 10%), flujos periódicos con inversión inicial en `t=0` y cobros posteriores al final del período. La TIR devuelve ambigüedad cuando los flujos cambian de signo varias veces. No incluye XIRR, impuestos automáticos ni cálculos con fechas irregulares.
-
-## Comprobaciones
+## Pruebas
 
 ```bash
+cd agents && uv run pytest
+cd ingest && uv run pytest
 pnpm --filter backend test
-pnpm test:ui
-pnpm --filter backend build
 pnpm --filter frontend build
-agents/.venv/bin/python -m pytest agents/test
-# Ejecutar con cwd ingest para cargar su paquete editable:
-(cd ingest && .venv/bin/python -m pytest test)
-agents/.venv/bin/ruff check agents
-ingest/.venv/bin/ruff check ingest
-terraform fmt -check -recursive .
 ```
 
-[Resultados y alcance de las comprobaciones](docs/validation.md).
-
-Para detener los procesos locales, ejecuta `scripts/down.sh`. Para empaquetar todos los componentes: `bash scripts/package.sh`. Para desplegar todo en AWS, prepara las credenciales y dependencias indicadas en [la guía de despliegue](docs/deployment.md), confirma la cuenta con `aws sts get-caller-identity` y ejecuta desde la raíz `./scripts/deploy.sh dev`. El script crea o configura el bucket de estado y aplica los stacks en orden; usa `./scripts/deploy.sh prod` para producción. `./scripts/destroy.sh dev` destruye los recursos del entorno y conserva el bucket de estado.
+Consulta las guías de Terraform de [agents](agents/terraform/README.md), [ingest](ingest/terraform/README.md), [backend](backend/terraform/README.md) y [frontend](frontend/terraform/README.md).

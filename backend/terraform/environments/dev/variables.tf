@@ -1,23 +1,33 @@
 variable "aws_region" {
-  type    = string
-  default = "us-east-1"
+  description = "AWS region for all resources"
+  type        = string
+  default     = "us-east-1"
 }
-variable "prefix" {
-  type    = string
-  default = "finantutor-dev"
+
+variable "project_name" {
+  description = "Project name used for resource naming and tagging"
+  type        = string
+  default     = "finantutor"
 }
+
+variable "environment" {
+  description = "Deployment environment"
+  type        = string
+  default     = "dev"
+
+  validation {
+    condition     = var.environment == "dev"
+    error_message = "This stack is only for the dev environment."
+  }
+}
+
 variable "agent_runtime_arn" {
+  description = "AgentCore Runtime ARN from agentcore deploy"
   type        = string
-  description = "Runtime ARN; null creates only the application table and authentication"
-  default     = null
 }
-variable "materials_bucket" {
+
+variable "agent_runtime_qualifier" {
+  description = "AgentCore runtime qualifier (endpoint)"
   type        = string
-  description = "Materials bucket; needed when creating the BFF"
-  default     = null
-}
-variable "lambda_zip" {
-  type        = string
-  description = "Path to packaged BFF code"
-  default     = "../../../dist/backend.zip"
+  default     = "DEFAULT"
 }
