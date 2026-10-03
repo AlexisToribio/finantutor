@@ -1,0 +1,183 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Finantutor · Del material a una respuesta con evidencia",
+    "quality_profile": "showcase",
+    "viewBox": [1068, 650],
+    "views": [
+      {
+        "id": "ingesta",
+        "label": "Preparar el conocimiento",
+        "focus": ["pdf", "ingest", "vectors"],
+        "note": "Cada página se fragmenta y Titan convierte el texto en vectores que se guardan con sus metadatos."
+      },
+      {
+        "id": "consulta",
+        "label": "Responder una pregunta",
+        "focus": ["question", "query", "vectors", "passages", "tutor", "answer"],
+        "note": "La pregunta busca fragmentos cercanos y Claude responde usando ese contexto."
+      }
+    ]
+  },
+  "stages": [
+    { "label": "Fuente" },
+    { "label": "Vectorizar" },
+    { "label": "Recuperar" },
+    { "label": "Contextualizar" },
+    { "label": "Explicar" }
+  ],
+  "nodes": [
+    {
+      "id": "pdf",
+      "type": "cloud",
+      "label": "PDF en Amazon S3",
+      "sublabel": "sílabo y clases",
+      "tag": "título + página",
+      "stage": 0,
+      "row": 0
+    },
+    {
+      "id": "question",
+      "type": "external",
+      "label": "Pregunta del profesor",
+      "sublabel": "lenguaje natural",
+      "stage": 0,
+      "row": 2,
+      "width": 150
+    },
+    {
+      "id": "ingest",
+      "type": "backend",
+      "label": "Lambda + Titan",
+      "sublabel": "fragmenta + embebe",
+      "tag": "800 + 100",
+      "stage": 1,
+      "row": 0,
+      "width": 150
+    },
+    {
+      "id": "query",
+      "type": "backend",
+      "label": "Titan Embeddings V2",
+      "sublabel": "vector de consulta",
+      "stage": 1,
+      "row": 2
+    },
+    {
+      "id": "vectors",
+      "type": "database",
+      "label": "Amazon S3 Vectors",
+      "sublabel": "índice semántico",
+      "tag": "1024 dimensiones",
+      "stage": 2,
+      "row": 1
+    },
+    {
+      "id": "passages",
+      "type": "database",
+      "label": "Fragmentos relevantes",
+      "sublabel": "texto + título + página",
+      "stage": 3,
+      "row": 1,
+      "width": 150
+    },
+    {
+      "id": "tutor",
+      "type": "cloud",
+      "label": "Tutor en Bedrock",
+      "sublabel": "Claude Sonnet 4.5",
+      "tag": "prompt + contexto",
+      "stage": 4,
+      "row": 1
+    },
+    {
+      "id": "answer",
+      "type": "frontend",
+      "label": "Respuesta fundamentada",
+      "sublabel": "explicación + fuentes",
+      "stage": 4,
+      "row": 3,
+      "width": 156
+    }
+  ],
+  "flows": [
+    {
+      "id": "pdf-ingest",
+      "from": "pdf",
+      "to": "ingest",
+      "label": "páginas",
+      "labelAt": [198, 200],
+      "classification": "documento del curso",
+      "variant": "dashed"
+    },
+    {
+      "id": "ingest-vectors",
+      "from": "ingest",
+      "to": "vectors",
+      "label": "fragmentos + embeddings",
+      "classification": "texto y metadatos",
+      "variant": "emphasis"
+    },
+    {
+      "id": "question-query",
+      "from": "question",
+      "to": "query",
+      "label": "pregunta",
+      "classification": "consulta",
+      "variant": "default"
+    },
+    {
+      "id": "query-vectors",
+      "from": "query",
+      "to": "vectors",
+      "label": "vector de consulta",
+      "classification": "embedding",
+      "variant": "emphasis"
+    },
+    {
+      "id": "vectors-passages",
+      "from": "vectors",
+      "to": "passages",
+      "label": "similitud semántica",
+      "labelAt": [628, 314],
+      "classification": "top-k",
+      "variant": "emphasis"
+    },
+    {
+      "id": "passages-tutor",
+      "from": "passages",
+      "to": "tutor",
+      "label": "contexto verificable",
+      "labelAt": [853, 314],
+      "classification": "RAG",
+      "variant": "emphasis"
+    },
+    {
+      "id": "tutor-answer",
+      "from": "tutor",
+      "to": "answer",
+      "label": "respuesta con citas",
+      "labelAt": [960, 314],
+      "classification": "streaming SSE",
+      "variant": "emphasis"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Ingesta",
+      "items": ["La carga del PDF usa una URL PUT firmada", "La Lambda procesa por página y conserva el texto original"]
+    },
+    {
+      "dot": "emerald",
+      "title": "Recuperación",
+      "items": ["Titan convierte texto y consulta en vectores", "S3 Vectors encuentra cercanía; no redacta respuestas"]
+    },
+    {
+      "dot": "violet",
+      "title": "Explicación",
+      "items": ["Claude recibe fragmentos relevantes como contexto", "El tutor cita título y página cuando están disponibles"]
+    }
+  ]
+}

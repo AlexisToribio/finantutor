@@ -30,6 +30,7 @@ wheels/
 # Tool caches
 .ruff_cache/
 .pytest_cache/
+.superpowers/
 
 # Frontend / backend (pnpm)
 node_modules/

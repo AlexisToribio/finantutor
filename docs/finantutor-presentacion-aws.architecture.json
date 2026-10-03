@@ -1,0 +1,243 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Finantutor · Arquitectura AWS",
+    "quality_profile": "showcase",
+    "viewBox": [1380, 820],
+    "views": [
+      {
+        "id": "consulta",
+        "label": "Consulta del estudiante",
+        "focus": ["student", "edge", "bff", "runtime", "model", "vectors"],
+        "note": "La pregunta autenticada llega al tutor, recupera contexto y vuelve como respuesta con fuentes."
+      },
+      {
+        "id": "materiales",
+        "label": "Carga de materiales",
+        "focus": ["student", "edge", "bff", "documents", "ingest", "vectors"],
+        "note": "El navegador carga el PDF directamente y la ingesta actualiza el índice vectorial."
+      },
+      {
+        "id": "estado",
+        "label": "Contexto e historial",
+        "focus": ["bff", "history", "runtime", "memory"],
+        "note": "Memory mantiene contexto operativo; DynamoDB conserva el historial visible."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "student",
+      "type": "external",
+      "label": "Profesor / estudiante",
+      "sublabel": "Navegador",
+      "pos": [30, 330],
+      "size": [170, 72]
+    },
+    {
+      "id": "identity",
+      "type": "security",
+      "label": "Amazon Cognito",
+      "sublabel": "Identidad y JWT",
+      "pos": [230, 110],
+      "size": [180, 76]
+    },
+    {
+      "id": "edge",
+      "type": "frontend",
+      "label": "S3 + CloudFront",
+      "sublabel": "SPA y ruta /api/*",
+      "pos": [230, 330],
+      "size": [180, 76]
+    },
+    {
+      "id": "bff",
+      "type": "backend",
+      "label": "BFF Lambda",
+      "sublabel": "Auth · SSE · cargas",
+      "pos": [460, 330],
+      "size": [180, 76]
+    },
+    {
+      "id": "history",
+      "type": "database",
+      "label": "Amazon DynamoDB",
+      "sublabel": "Historial visible",
+      "pos": [460, 540],
+      "size": [180, 76]
+    },
+    {
+      "id": "runtime",
+      "type": "backend",
+      "label": "AgentCore Runtime",
+      "sublabel": "Tutor Strands",
+      "tag": "Agente único",
+      "pos": [700, 330],
+      "size": [190, 76]
+    },
+    {
+      "id": "memory",
+      "type": "database",
+      "label": "AgentCore Memory",
+      "sublabel": "Contexto de sesión",
+      "pos": [700, 110],
+      "size": [190, 76]
+    },
+    {
+      "id": "guardrail",
+      "type": "security",
+      "label": "Bedrock Guardrails",
+      "sublabel": "Entrada y salida",
+      "pos": [940, 110],
+      "size": [190, 76]
+    },
+    {
+      "id": "model",
+      "type": "cloud",
+      "label": "Amazon Bedrock",
+      "sublabel": "Claude Sonnet 4.5",
+      "pos": [940, 330],
+      "size": [190, 76]
+    },
+    {
+      "id": "documents",
+      "type": "cloud",
+      "label": "Amazon S3",
+      "sublabel": "PDF del curso",
+      "pos": [700, 650],
+      "size": [190, 76]
+    },
+    {
+      "id": "ingest",
+      "type": "backend",
+      "label": "Lambda de ingesta",
+      "sublabel": "Extrae · fragmenta · vectoriza",
+      "pos": [940, 650],
+      "size": [210, 76]
+    },
+    {
+      "id": "vectors",
+      "type": "database",
+      "label": "Amazon S3 Vectors",
+      "sublabel": "Índice RAG",
+      "pos": [1170, 500],
+      "size": [170, 76]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "AWS · us-east-1",
+      "wraps": ["identity", "edge", "bff", "history", "runtime", "memory", "guardrail", "model", "documents", "ingest", "vectors"],
+      "pad": 28
+    }
+  ],
+  "connections": [
+    {
+      "id": "student-edge",
+      "from": "student",
+      "to": "edge",
+      "label": "HTTPS",
+      "variant": "emphasis"
+    },
+    {
+      "id": "edge-identity",
+      "from": "edge",
+      "to": "identity",
+      "label": "login · JWT",
+      "variant": "security"
+    },
+    {
+      "id": "edge-bff",
+      "from": "edge",
+      "to": "bff",
+      "label": "consulta + JWT",
+      "labelAt": [435, 420],
+      "variant": "emphasis"
+    },
+    {
+      "id": "bff-runtime",
+      "from": "bff",
+      "to": "runtime",
+      "label": "InvokeAgentRuntime · SSE",
+      "labelAt": [670, 310],
+      "variant": "emphasis"
+    },
+    {
+      "id": "bff-history",
+      "from": "bff",
+      "to": "history",
+      "label": "guarda y consulta",
+      "labelAt": [550, 430],
+      "variant": "dashed"
+    },
+    {
+      "id": "runtime-memory",
+      "from": "runtime",
+      "to": "memory",
+      "label": "contexto",
+      "variant": "dashed"
+    },
+    {
+      "id": "runtime-guardrail",
+      "from": "runtime",
+      "to": "guardrail",
+      "label": "filtra entrada y salida",
+      "variant": "security"
+    },
+    {
+      "id": "runtime-model",
+      "from": "runtime",
+      "to": "model",
+      "label": "inferencia",
+      "labelAt": [950, 430],
+      "variant": "emphasis"
+    },
+    {
+      "id": "runtime-vectors",
+      "from": "runtime",
+      "to": "vectors",
+      "label": "QueryVectors",
+      "variant": "dashed"
+    },
+    {
+      "id": "bff-documents",
+      "from": "bff",
+      "to": "documents",
+      "label": "URL PUT firmada",
+      "variant": "dashed"
+    },
+    {
+      "id": "documents-ingest",
+      "from": "documents",
+      "to": "ingest",
+      "label": "evento S3",
+      "variant": "dashed"
+    },
+    {
+      "id": "ingest-vectors",
+      "from": "ingest",
+      "to": "vectors",
+      "label": "PutVectors",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Experiencia",
+      "items": ["CloudFront sirve la SPA y enruta la API", "El BFF transmite progreso y respuesta mediante SSE"]
+    },
+    {
+      "dot": "emerald",
+      "title": "Aprendizaje con evidencia",
+      "items": ["El tutor consulta S3 Vectors antes de responder", "Los fragmentos conservan título y página"]
+    },
+    {
+      "dot": "rose",
+      "title": "Control",
+      "items": ["Cognito autentica y Guardrails filtra", "IAM separa permisos de runtime, BFF e ingesta"]
+    }
+  ]
+}

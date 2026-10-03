@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Finantutor · Presentación del curso</title>
+  <style>
+    :root {
+      --ink: #eef8ff;
+      --muted: #96acc0;
+      --night: #06111f;
+      --panel: #0b1e31;
+      --panel-2: #102941;
+      --cyan: #32d5ff;
+      --cyan-soft: #8ee9ff;
+      --blue: #397cff;
+      --green: #67e8b5;
+      --amber: #ffc86a;
+      --line: rgba(151, 211, 239, .2);
+      --slide-pad: clamp(34px, 5.7vw, 108px);
+    }
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: var(--night); color: var(--ink); }
+    body { font-family: "Trebuchet MS", "Avenir Next", sans-serif; }
+    button { font: inherit; }
+    .deck { width: 100%; height: 100%; position: relative; }
+    .slide {
+      position: absolute; inset: 0; display: none; overflow: hidden;
+      padding: var(--slide-pad); isolation: isolate;
+      background:
+        radial-gradient(circle at 88% 4%, rgba(50,213,255,.14), transparent 31%),
+        linear-gradient(135deg, #071522 0%, #06111f 58%, #081725 100%);
+    }
+    .slide::before {
+      content: ""; position: absolute; inset: 0; z-index: -2; opacity: .34;
+      background-image: linear-gradient(rgba(124,192,222,.08) 1px, transparent 1px), linear-gradient(90deg, rgba(124,192,222,.08) 1px, transparent 1px);
+      background-size: 46px 46px; mask-image: linear-gradient(to bottom, #000, transparent 78%);
+    }
+    .slide::after { content: ""; position: absolute; width: 38vw; height: 38vw; border: 1px solid rgba(50,213,255,.12); border-radius: 50%; right: -18vw; bottom: -24vw; z-index: -1; }
+    .slide.active { display: flex; flex-direction: column; animation: arrive .5s cubic-bezier(.2,.7,.2,1) both; }
+    @keyframes arrive { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+    .eyebrow { margin: 0 0 18px; color: var(--cyan-soft); font-size: clamp(12px, 1.2vw, 20px); font-weight: 800; letter-spacing: .17em; text-transform: uppercase; }
+    h1, h2 { font-family: Georgia, "Times New Roman", serif; letter-spacing: -.045em; margin: 0; text-wrap: balance; }
+    h1 { font-size: clamp(60px, 8.8vw, 154px); line-height: .88; }
+    h2 { font-size: clamp(44px, 6.1vw, 104px); line-height: .96; max-width: 1280px; }
+    .cyan { color: var(--cyan); }
+    .lead { color: #c4d7e7; font-size: clamp(20px, 2.15vw, 37px); line-height: 1.35; max-width: 1020px; }
+    .small { color: var(--muted); font-size: clamp(14px, 1.1vw, 20px); line-height: 1.45; }
+    .topline { display: flex; justify-content: space-between; align-items: center; gap: 24px; }
+    .chapter { color: #65829a; font-size: 14px; letter-spacing: .15em; text-transform: uppercase; }
+    .hero { margin: auto 0; }
+    .hero .lead { margin: 34px 0 0; }
+    .team { margin-top: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 42px; max-width: 980px; padding-top: 26px; border-top: 1px solid var(--line); }
+    .member { display: flex; justify-content: space-between; gap: 14px; font-size: clamp(13px, 1.05vw, 19px); color: #d5e7f3; }
+    .member code { color: var(--cyan-soft); font-family: inherit; }
+    .display-number { font-family: Georgia, serif; font-size: clamp(112px, 17vw, 300px); line-height: .8; color: rgba(50,213,255,.13); position: absolute; right: 7vw; bottom: 7vh; }
+    .split { display: grid; grid-template-columns: 1.05fr .95fr; gap: clamp(34px, 5vw, 96px); align-items: center; flex: 1; }
+    .quote { font-family: Georgia, serif; font-size: clamp(35px, 4.5vw, 78px); line-height: 1.06; max-width: 1000px; }
+    .quote em { color: var(--cyan); font-style: normal; }
+    .stack { display: grid; gap: 15px; }
+    .card { padding: clamp(18px, 2vw, 32px); background: linear-gradient(145deg, rgba(16,41,65,.92), rgba(8,26,43,.8)); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 18px 50px rgba(0,0,0,.22); }
+    .card .kicker { color: var(--cyan-soft); font-size: 13px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; }
+    .card h3 { margin: 9px 0 5px; font-size: clamp(20px, 1.8vw, 31px); }
+    .card p { margin: 0; color: var(--muted); font-size: clamp(14px, 1.15vw, 20px); line-height: 1.4; }
+    .four { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-top: auto; }
+    .four .card { min-height: 245px; display: flex; flex-direction: column; }
+    .icon { width: 54px; height: 54px; border: 1px solid rgba(50,213,255,.4); color: var(--cyan); border-radius: 50%; display: grid; place-items: center; font-size: 23px; margin-bottom: 42px; }
+    .architecture { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr auto 1.25fr auto 1fr; align-items: center; gap: 14px; margin-top: 36px; }
+    .arch-node { min-height: 118px; padding: 20px; display: flex; flex-direction: column; justify-content: center; border: 1px solid var(--line); background: rgba(9,30,49,.92); border-radius: 16px; }
+    .arch-node strong { font-size: clamp(18px,1.45vw,26px); }
+    .arch-node span { margin-top: 7px; color: var(--muted); font-size: clamp(12px,.95vw,17px); }
+    .arch-node.core { border-color: rgba(50,213,255,.65); box-shadow: 0 0 0 1px rgba(50,213,255,.16), 0 18px 55px rgba(14,170,220,.13); }
+    .arrow { color: var(--cyan); font-size: 34px; text-align: center; }
+    .satellites { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-top: 18px; }
+    .sat { border-top: 2px solid var(--blue); background: rgba(12,33,52,.75); padding: 14px 16px; color: #c9dbe7; font-size: clamp(12px,1vw,17px); }
+    .diagram-link { margin-top: 16px; color: var(--cyan-soft); font-size: 14px; }
+    .rag { display: grid; grid-template-columns: repeat(5,1fr); gap: 26px; margin: 48px 0 0; position: relative; }
+    .rag::before { content: ""; position: absolute; left: 7%; right: 7%; top: 65px; height: 2px; background: linear-gradient(90deg,var(--cyan),var(--blue),var(--green)); z-index: -1; }
+    .rag-step { text-align: center; }
+    .rag-dot { width: 130px; height: 130px; margin: 0 auto 20px; border-radius: 30px; display: grid; place-items: center; background: #0c263e; border: 1px solid rgba(50,213,255,.46); color: var(--cyan); font: 700 38px Georgia,serif; box-shadow: 0 12px 42px rgba(0,0,0,.25); }
+    .rag-step strong { display: block; font-size: clamp(17px,1.4vw,25px); }
+    .rag-step span { display: block; margin-top: 7px; color: var(--muted); font-size: clamp(12px,1vw,17px); line-height: 1.35; }
+    .controls-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 26px; margin-top: 30px; flex: 1; }
+    .guard { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+    .guard .card { min-height: 180px; }
+    .budgets { background: linear-gradient(135deg, rgba(50,213,255,.12), rgba(57,124,255,.07)); border: 1px solid rgba(50,213,255,.32); border-radius: 20px; padding: 28px; display: grid; grid-template-columns: repeat(2,1fr); gap: 24px; }
+    .metric b { display: block; color: var(--cyan); font: 700 clamp(34px,3.7vw,64px) Georgia,serif; }
+    .metric span { color: var(--muted); font-size: clamp(13px,1vw,18px); }
+    .decisions { display: grid; grid-template-columns: repeat(3,1fr); gap: 20px; margin: auto 0; }
+    .decision { border-left: 3px solid var(--cyan); padding: 24px 26px; background: rgba(9,30,49,.75); }
+    .decision .num { font: 700 48px Georgia,serif; color: rgba(50,213,255,.42); }
+    .decision h3 { font-size: clamp(23px,2vw,34px); margin: 14px 0 10px; }
+    .decision p { margin: 0; color: var(--muted); font-size: clamp(15px,1.2vw,21px); line-height: 1.42; }
+    .demo-panel { margin: auto 0; display: grid; grid-template-columns: .8fr 1.2fr; gap: 40px; align-items: center; }
+    .demo-badge { width: min(25vw,340px); aspect-ratio: 1; border: 1px solid rgba(50,213,255,.35); border-radius: 50%; display: grid; place-items: center; position: relative; }
+    .demo-badge::before,.demo-badge::after { content:""; position:absolute; border-radius:50%; border:1px solid rgba(50,213,255,.18); inset:10%; }
+    .demo-badge::after { inset:22%; background:rgba(50,213,255,.06); }
+    .demo-badge span { z-index:1; font: 700 clamp(48px,7vw,110px) Georgia,serif; color:var(--cyan); }
+    .prompts { display: grid; gap: 14px; }
+    .prompt { background: rgba(10,31,50,.9); border: 1px solid var(--line); border-radius: 15px; padding: 20px 24px; font-size: clamp(17px,1.4vw,25px); }
+    .prompt::before { content:"→"; color:var(--cyan); margin-right:14px; }
+    .closing { margin: auto 0; max-width: 1320px; }
+    .closing h2 { font-size: clamp(58px,8.1vw,138px); }
+    .closing .formula { margin-top: 42px; display:flex; align-items:center; gap:18px; flex-wrap:wrap; color:#c9dce9; font-size:clamp(18px,1.8vw,31px); }
+    .formula b { color:var(--cyan); font-weight:800; }
+    .formula i { color:#557289; font-style:normal; }
+    .nav { position: fixed; z-index: 20; left: 0; right: 0; bottom: 0; height: 5px; background: rgba(255,255,255,.06); }
+    .progress { height:100%; width:10%; background:linear-gradient(90deg,var(--blue),var(--cyan)); transition:width .35s ease; }
+    .hud { position:fixed; z-index:21; right:24px; bottom:20px; display:flex; align-items:center; gap:10px; color:#7894a9; font-size:13px; }
+    .hud button { color:#8eabc0; background:rgba(7,21,34,.75); border:1px solid var(--line); border-radius:9px; padding:7px 10px; cursor:pointer; }
+    .hud button:hover { color:var(--cyan); border-color:rgba(50,213,255,.5); }
+    .notes { display:none; }
+    @media (max-width: 900px) {
+      :root { --slide-pad: 34px; }
+      .split,.controls-grid,.demo-panel { grid-template-columns:1fr; }
+      .four { grid-template-columns:repeat(2,1fr); }
+      .architecture { grid-template-columns:1fr; gap:8px; }
+      .architecture .arrow { transform:rotate(90deg); font-size:24px; }
+      .satellites,.decisions { grid-template-columns:repeat(2,1fr); }
+      .rag { gap:9px; }
+      .rag-dot { width:74px;height:74px;border-radius:18px;font-size:24px; }
+      .team { grid-template-columns:1fr; }
+    }
+    @media (prefers-reduced-motion: reduce) { .slide.active { animation:none; } .progress { transition:none; } }
+    @media print {
+      html,body { overflow:visible; background:#fff; }
+      .slide,.slide.active { position:relative; display:flex; width:1600px; height:900px; page-break-after:always; }
+      .hud,.nav { display:none; }
+    }
+  </style>
+</head>
+<body>
+<main class="deck" aria-live="polite">
+  <section class="slide active" id="slide-1" data-title="Finantutor">
+    <div class="topline"><p class="eyebrow">UPC · Maestría en Inteligencia Artificial</p><span class="chapter">01 / Presentación</span></div>
+    <div class="hero">
+      <h1>Finan<span class="cyan">tutor</span></h1>
+      <p class="lead">Tutor inteligente para aprender finanzas con evidencia del curso.</p>
+    </div>
+    <div class="team" aria-label="Integrantes">
+      <div class="member"><span>Fernández Tacuche, José Wilfredo</span><code>E202610265</code></div>
+      <div class="member"><span>Jesus Brian Saenz Chafloque</span><code>E202610387</code></div>
+      <div class="member"><span>Romero Montoya, Milton Jhon</span><code>E202610467</code></div>
+      <div class="member"><span>Toribio Barrueta, Miguel Alexis</span><code>E202610111</code></div>
+    </div>
+    <div class="display-number">ƒ</div>
+  </section>
+
+  <section class="slide" id="slide-2" data-title="El reto">
+    <div class="topline"><p class="eyebrow">El punto de partida</p><span class="chapter">02 / Problema</span></div>
+    <div class="split">
+      <div><h2>El reto no es <span class="cyan">encontrar</span> información.</h2></div>
+      <div class="stack">
+        <p class="quote">Es convertir materiales dispersos en una <em>conversación que ayude a comprender.</em></p>
+        <p class="lead">Sílabo, diapositivas y lecturas contienen respuestas; el estudiante todavía debe conectar conceptos, supuestos y decisiones.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide" id="slide-3" data-title="La propuesta">
+    <div class="topline"><p class="eyebrow">La propuesta</p><span class="chapter">03 / Experiencia</span></div>
+    <div class="split">
+      <div>
+        <h2>Una conversación basada en <span class="cyan">el curso</span>.</h2>
+        <p class="lead">Finantutor consulta el material cargado, explica en español claro y conserva la referencia de título y página cuando está disponible.</p>
+      </div>
+      <div class="stack">
+        <div class="card"><span class="kicker">Sí hace</span><h3>Explica, relaciona y acompaña</h3><p>Responde preguntas de seguimiento, muestra pasos y propone práctica breve.</p></div>
+        <div class="card"><span class="kicker">No hace</span><h3>No reemplaza al profesor</h3><p>No califica, no inventa datos del caso y distingue el material del conocimiento general.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide" id="slide-4" data-title="Aprendizaje activo">
+    <div class="topline"><p class="eyebrow">Valor pedagógico</p><span class="chapter">04 / Aprendizaje</span></div>
+    <h2>De material estático a <span class="cyan">aprendizaje activo</span>.</h2>
+    <div class="four">
+      <article class="card"><div class="icon">?</div><span class="kicker">Consultar</span><h3>Aclarar una idea</h3><p>“¿Qué supuesto sostiene esta fórmula?”</p></article>
+      <article class="card"><div class="icon">↗</div><span class="kicker">Profundizar</span><h3>Conectar conceptos</h3><p>“¿Cómo cambia el VAN cuando varía el WACC?”</p></article>
+      <article class="card"><div class="icon">∑</div><span class="kicker">Practicar</span><h3>Seguir un procedimiento</h3><p>Pasos, unidades y supuestos visibles.</p></article>
+      <article class="card"><div class="icon">≠</div><span class="kicker">Contrastar</span><h3>Cuestionar decisiones</h3><p>Comparar escenarios sin inventar datos.</p></article>
+    </div>
+  </section>
+
+  <section class="slide" id="slide-5" data-title="Arquitectura AWS">
+    <div class="topline"><p class="eyebrow">Cómo lo hacemos posible</p><span class="chapter">05 / Arquitectura AWS</span></div>
+    <h2>Una ruta clara desde la pregunta hasta la <span class="cyan">respuesta</span>.</h2>
+    <div class="architecture" role="img" aria-label="Ruta simplificada de arquitectura desde el usuario hasta Amazon Bedrock">
+      <div class="arch-node"><strong>Profesor</strong><span>Navegador autenticado</span></div><div class="arrow">→</div>
+      <div class="arch-node"><strong>CloudFront</strong><span>SPA + ruta API</span></div><div class="arrow">→</div>
+      <div class="arch-node"><strong>BFF Lambda</strong><span>JWT · SSE · historial</span></div><div class="arrow">→</div>
+      <div class="arch-node core"><strong>AgentCore Runtime</strong><span>Tutor Strands + RAG</span></div><div class="arrow">→</div>
+      <div class="arch-node"><strong>Amazon Bedrock</strong><span>Claude Sonnet 4.5</span></div>
+    </div>
+    <div class="satellites">
+      <div class="sat">Cognito · identidad</div><div class="sat">Memory · contexto</div><div class="sat">DynamoDB · historial</div><div class="sat">S3 Vectors · evidencia</div>
+    </div>
+    <p class="diagram-link">Anexo explorable: finantutor-presentacion-aws.html</p>
+  </section>
+
+  <section class="slide" id="slide-6" data-title="Flujo RAG">
+    <div class="topline"><p class="eyebrow">RAG · conocimiento del curso</p><span class="chapter">06 / Evidencia</span></div>
+    <h2>Cómo responde sin <span class="cyan">perder la fuente</span>.</h2>
+    <div class="rag" role="img" aria-label="Flujo RAG desde PDF hasta respuesta con fuentes">
+      <div class="rag-step"><div class="rag-dot">PDF</div><strong>Material</strong><span>Sílabo y clases en S3</span></div>
+      <div class="rag-step"><div class="rag-dot">¶</div><strong>Fragmentos</strong><span>Texto por página, con solapamiento</span></div>
+      <div class="rag-step"><div class="rag-dot">[ ]</div><strong>Embeddings</strong><span>Titan representa significado</span></div>
+      <div class="rag-step"><div class="rag-dot">⌕</div><strong>Recuperación</strong><span>S3 Vectors encuentra cercanía</span></div>
+      <div class="rag-step"><div class="rag-dot">Aa</div><strong>Explicación</strong><span>Claude responde con contexto</span></div>
+    </div>
+    <p class="diagram-link">Titan vectoriza; S3 Vectors recupera; Claude explica · Anexo: finantutor-rag.html</p>
+  </section>
+
+  <section class="slide" id="slide-7" data-title="Control">
+    <div class="topline"><p class="eyebrow">Confianza operativa</p><span class="chapter">07 / Control</span></div>
+    <h2>Diseñado para responder <span class="cyan">con control</span>.</h2>
+    <div class="controls-grid">
+      <div class="guard">
+        <div class="card"><span class="kicker">Identidad</span><h3>Cognito</h3><p>Solo usuarios autenticados acceden al tutor.</p></div>
+        <div class="card"><span class="kicker">Contenido</span><h3>Guardrails</h3><p>Inspección de entrada y salida del modelo.</p></div>
+        <div class="card"><span class="kicker">Acceso</span><h3>IAM</h3><p>Permisos separados para BFF, ingesta y runtime.</p></div>
+      </div>
+      <div class="budgets" aria-label="Presupuestos de ejecución">
+        <div class="metric"><b>4096</b><span>tokens por respuesta</span></div>
+        <div class="metric"><b>5</b><span>turnos por consulta</span></div>
+        <div class="metric"><b>26k</b><span>tokens totales</span></div>
+        <div class="metric"><b>105s</b><span>timeout del tutor</span></div>
+        <p class="small" style="grid-column:1/-1;margin:0">6500 tokens de salida acumulada por ejecución.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide" id="slide-8" data-title="Decisiones">
+    <div class="topline"><p class="eyebrow">Decisiones de diseño</p><span class="chapter">08 / Aprendizajes</span></div>
+    <h2>Tres decisiones para mantenerlo <span class="cyan">útil y simple</span>.</h2>
+    <div class="decisions">
+      <article class="decision"><span class="num">01</span><h3>Un agente</h3><p>Una responsabilidad coherente: conversar y consultar el curso. Menos coordinación, latencia y costo.</p></article>
+      <article class="decision"><span class="num">02</span><h3>RAG, no memoria del modelo</h3><p>El material puede cambiar sin reentrenar; las fuentes siguen visibles y actualizables.</p></article>
+      <article class="decision"><span class="num">03</span><h3>Dos tipos de memoria</h3><p>AgentCore Memory sostiene el contexto; DynamoDB conserva el historial que ve la interfaz.</p></article>
+    </div>
+  </section>
+
+  <section class="slide" id="slide-9" data-title="Demo">
+    <div class="topline"><p class="eyebrow">Prueba del profesor · Miguel acompaña</p><span class="chapter">09 / Demo en vivo</span></div>
+    <div class="demo-panel">
+      <div class="demo-badge"><span>LIVE</span></div>
+      <div>
+        <h2>Ahora pregunta tú.</h2>
+        <p class="lead">El sílabo y algunas clases ya están cargados. Estas ideas son opcionales:</p>
+        <div class="prompts">
+          <div class="prompt">¿Qué temas y resultados de aprendizaje cubre el curso?</div>
+          <div class="prompt">Explícame la relación entre VAN, TIR y costo de capital.</div>
+          <div class="prompt">¿En qué clase se aborda el análisis de sensibilidad?</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide" id="slide-10" data-title="Cierre">
+    <div class="topline"><p class="eyebrow">Cierre</p><span class="chapter">10 / Conclusión</span></div>
+    <div class="closing">
+      <h2>Tecnología al servicio de <span class="cyan">comprender mejor</span>.</h2>
+      <div class="formula"><b>Material del curso</b><i>+</i><b>recuperación con evidencia</b><i>+</i><b>conversación</b><i>=</i><span>aprendizaje más activo</span></div>
+      <p class="lead">Finantutor no sustituye el criterio del profesor ni del estudiante. Reduce la distancia entre tener el material y poder dialogar con él.</p>
+    </div>
+  </section>
+</main>
+
+<div class="hud" aria-label="Controles de presentación">
+  <span id="counter">1 / 10</span>
+  <button id="prev" type="button" aria-label="Diapositiva anterior">←</button>
+  <button id="next" type="button" aria-label="Diapositiva siguiente">→</button>
+  <button id="fullscreen" type="button" aria-label="Pantalla completa">⛶</button>
+</div>
+<div class="nav" aria-hidden="true"><div class="progress" id="progress"></div></div>
+
+<script>
+  (() => {
+    const slides = [...document.querySelectorAll('.slide')];
+    const counter = document.getElementById('counter');
+    const progress = document.getElementById('progress');
+    let index = Math.max(0, Math.min(slides.length - 1, Number(location.hash.replace('#', '')) - 1 || 0));
+
+    function show(next, updateHash = true) {
+      index = Math.max(0, Math.min(slides.length - 1, next));
+      slides.forEach((slide, i) => slide.classList.toggle('active', i === index));
+      counter.textContent = `${index + 1} / ${slides.length}`;
+      progress.style.width = `${((index + 1) / slides.length) * 100}%`;
+      document.title = `${slides[index].dataset.title} · Finantutor`;
+      if (updateHash) history.replaceState(null, '', `#${index + 1}`);
+    }
+    function next() { show(index + 1); }
+    function prev() { show(index - 1); }
+    document.getElementById('next').addEventListener('click', next);
+    document.getElementById('prev').addEventListener('click', prev);
+    document.getElementById('fullscreen').addEventListener('click', () => {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+      else document.exitFullscreen?.();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(event.key)) { event.preventDefault(); next(); }
+      if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(event.key)) { event.preventDefault(); prev(); }
+      if (event.key === 'Home') { event.preventDefault(); show(0); }
+      if (event.key === 'End') { event.preventDefault(); show(slides.length - 1); }
+      if (event.key.toLowerCase() === 'f') document.getElementById('fullscreen').click();
+    });
+    let touchStart = 0;
+    document.addEventListener('touchstart', e => { touchStart = e.changedTouches[0].clientX; }, { passive: true });
+    document.addEventListener('touchend', e => {
+      const delta = e.changedTouches[0].clientX - touchStart;
+      if (Math.abs(delta) > 60) delta < 0 ? next() : prev();
+    }, { passive: true });
+    window.addEventListener('hashchange', () => show(Number(location.hash.replace('#', '')) - 1 || 0, false));
+    show(index, false);
+  })();
+</script>
+</body>
+</html>
