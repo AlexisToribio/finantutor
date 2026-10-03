@@ -5,6 +5,7 @@ from infrastructure.adapters.s3_vector_index import S3VectorIndex
 from infrastructure.adapters.titan_embeddings import TitanEmbeddingModel
 from infrastructure.adapters.vector_passage_retriever import VectorPassageRetriever
 from infrastructure.config.settings import Settings
+from infrastructure.llm.limits import TUTOR_LIMITS, TUTOR_TIMEOUT_SECONDS
 
 
 def build_retriever(settings: Settings) -> VectorPassageRetriever:
@@ -30,4 +31,6 @@ def build_tutor(
         retriever=retriever,
         memory_id=settings.agentcore_memory_id,
         aws_region=settings.aws_region,
+        limits=TUTOR_LIMITS,
+        timeout_seconds=TUTOR_TIMEOUT_SECONDS,
     )

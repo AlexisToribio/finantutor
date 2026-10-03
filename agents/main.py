@@ -14,7 +14,7 @@ from infrastructure.composition import (
     build_tutor,
     build_retriever,
 )
-from infrastructure.config.settings import load_settings
+from infrastructure.config.settings import TUTOR_MAX_OUTPUT_TOKENS, load_settings
 from infrastructure.llm.load import load_model
 from infrastructure.logger import logger
 from infrastructure.runtime.chat_stream import chat_events
@@ -40,7 +40,11 @@ _guardrail = {
     "guardrail_id": _settings.guardrail_id,
     "guardrail_version": _settings.guardrail_version,
 }
-_model = load_model(model_id=_settings.model_id, **_guardrail)
+_model = load_model(
+    model_id=_settings.model_id,
+    max_tokens=TUTOR_MAX_OUTPUT_TOKENS,
+    **_guardrail,
+)
 _tutor = build_tutor(
     _settings,
     model=_model,

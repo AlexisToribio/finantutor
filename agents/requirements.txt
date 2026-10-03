@@ -5,5 +5,5 @@ bedrock-agentcore>=1.0.3
 mcp>=1.19.0
 pydantic>=2.0.0
 python-dotenv>=1.2.1
-strands-agents>=1.13.0
+strands-agents>=1.56.0,<2.0.0
 strands-agents-tools>=0.2.16

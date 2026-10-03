@@ -9,11 +9,17 @@ from bedrock_agentcore.memory.integrations.strands.session_manager import (
 )
 from strands import Agent, tool
 from strands.models import BedrockModel
+from strands.types.agent import Limits
 
 from domain.entities.course import Course
 from domain.ports.chat_assistant import ChatAssistant
 from domain.ports.passage_retriever import PassageRetriever
 from infrastructure.logger import logger
+from infrastructure.llm.limits import (
+    TUTOR_LIMITS,
+    TUTOR_TIMEOUT_SECONDS,
+    invoke_agent,
+)
 from infrastructure.progress import report_progress
 
 COURSE_NAME = "Modelos financieros y evaluación de proyectos"
@@ -37,11 +43,16 @@ class TutorAgent(ChatAssistant):
         retriever: PassageRetriever,
         memory_id: str | None = None,
         aws_region: str = "us-east-1",
+        *,
+        limits: Limits = TUTOR_LIMITS,
+        timeout_seconds: int = TUTOR_TIMEOUT_SECONDS,
     ) -> None:
         self._model = model
         self._retriever = retriever
         self._memory_id = memory_id.strip() if memory_id else None
         self._aws_region = aws_region
+        self._limits = limits
+        self._timeout_seconds = timeout_seconds
         self._sessions: dict[str, Agent] = {}
 
     def reply(self, session_id: str, message: str, actor_id: str) -> dict[str, Any]:
@@ -58,7 +69,14 @@ class TutorAgent(ChatAssistant):
         if agent is None:
             agent = self._build_agent(session_id, actor_id)
             self._sessions[key] = agent
-        result = str(agent(message))
+        agent_result = invoke_agent(
+            agent,
+            message,
+            role="tutor",
+            limits=self._limits,
+            timeout_seconds=self._timeout_seconds,
+        )
+        result = str(agent_result)
         logger.info(
             "tutor.responded",
             session_id=session_id,
@@ -115,4 +133,5 @@ class TutorAgent(ChatAssistant):
             tools=[search_course_materials],
             session_manager=session_manager,
             callback_handler=None,
+            retry_strategy=None,
         )

@@ -29,4 +29,10 @@ El despliegue requiere el `vector_index_arn` del stack de ingest. El runtime rec
 
 El historial visible del chat se conserva en DynamoDB desde el stack `backend/`. No se almacena contenido generado ni hay agentes elaborador, evaluador u orquestador.
 
+## Presupuesto y límites de ejecución
+
+El tutor limita cada respuesta del modelo a 4096 tokens. Cada consulta admite como máximo 5 turnos, 6500 tokens de salida acumulada, 26000 tokens totales y 105 segundos de ejecución. El cliente de Bedrock usa timeouts de conexión y lectura de 5 y 45 segundos, respectivamente, con tres intentos adaptativos. El BFF conserva su timeout de 120 segundos.
+
+Los límites acumulados de tokens son preventivos: la última respuesta del modelo puede superar ligeramente el umbral y estos controles no sustituyen el seguimiento real del gasto.
+
 Para ejecutar Terraform manualmente, usa `terraform/environments/dev` o `terraform/environments/prod`, no el directorio raíz de `terraform/`.

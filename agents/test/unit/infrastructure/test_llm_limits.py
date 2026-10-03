@@ -1,0 +1,70 @@
+from __future__ import annotations
+
+import threading
+from dataclasses import dataclass
+from unittest.mock import MagicMock
+
+import pytest
+
+from infrastructure.llm.limits import AgentTimeoutError, invoke_agent
+
+
+@dataclass
+class _AgentResult:
+    stop_reason: str = "end_turn"
+
+
+def test_invoke_agent_passes_limits_and_cancel_signal() -> None:
+    agent = MagicMock(return_value=_AgentResult())
+    limits = {"turns": 2, "output_tokens": 100, "total_tokens": 200}
+
+    result = invoke_agent(
+        agent,
+        "hola",
+        role="test_agent",
+        limits=limits,
+        timeout_seconds=10,
+    )
+
+    assert result.stop_reason == "end_turn"
+    _, kwargs = agent.call_args
+    assert kwargs["limits"] == limits
+    assert isinstance(kwargs["cancel_signal"], threading.Event)
+
+
+def test_invoke_agent_translates_cancelled_result_to_timeout() -> None:
+    agent = MagicMock(return_value=_AgentResult(stop_reason="cancelled"))
+
+    with pytest.raises(AgentTimeoutError, match="test_agent exceeded"):
+        invoke_agent(
+            agent,
+            "hola",
+            role="test_agent",
+            limits={"turns": 1},
+            timeout_seconds=10,
+        )
+
+
+def test_invoke_agent_cleans_request_context_after_failure() -> None:
+    failing_agent = MagicMock(side_effect=RuntimeError("model failed"))
+
+    with pytest.raises(RuntimeError, match="model failed"):
+        invoke_agent(
+            failing_agent,
+            "hola",
+            role="failing_agent",
+            limits={"turns": 1},
+            timeout_seconds=10,
+        )
+
+    succeeding_agent = MagicMock(return_value=_AgentResult())
+    invoke_agent(
+        succeeding_agent,
+        "hola de nuevo",
+        role="succeeding_agent",
+        limits={"turns": 1},
+        timeout_seconds=10,
+    )
+
+    cancel_signal = succeeding_agent.call_args.kwargs["cancel_signal"]
+    assert not cancel_signal.is_set()
