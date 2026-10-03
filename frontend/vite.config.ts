@@ -15,6 +15,7 @@ export default defineConfig({
           }
           if (
             id.includes("react-markdown") ||
+            id.includes("katex") ||
             id.includes("micromark") ||
             id.includes("mdast") ||
             id.includes("hast") ||
