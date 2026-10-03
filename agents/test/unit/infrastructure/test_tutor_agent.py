@@ -18,7 +18,7 @@ def test_reply_applies_injected_limits_and_preserves_response_contract() -> None
         patch(
             "infrastructure.adapters.llm.tutor_agent.Agent",
             return_value=strands_agent,
-        ),
+        ) as agent_class,
         patch(
             "infrastructure.adapters.llm.tutor_agent.invoke_agent",
             return_value=_AgentResult(),
@@ -40,3 +40,7 @@ def test_reply_applies_injected_limits_and_preserves_response_contract() -> None
         timeout_seconds=12,
     )
     assert response == {"reply": "respuesta", "session_id": "session-1"}
+    system_prompt = agent_class.call_args.kwargs["system_prompt"]
+    assert "Markdown compatible con GFM" in system_prompt
+    assert "cada fila de una tabla en una línea independiente" in system_prompt
+    assert "cada elemento de una lista en una línea independiente" in system_prompt
