@@ -8,7 +8,7 @@ from typing import Any
 from infrastructure.logger import logger
 from infrastructure.progress import bind_progress, reset_progress
 
-AGENT_UNAVAILABLE = "El asistente no respondió. Inténtalo de nuevo."
+AGENT_UNAVAILABLE = "El tutor no respondió. Inténtalo de nuevo."
 HEARTBEAT_SECONDS = 15
 # AgentCore runs Python 3.10, where asyncio.TimeoutError is not the builtin.
 _WAIT_TIMEOUTS = (

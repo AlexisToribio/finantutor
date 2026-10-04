@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+
+type SessionStorage = Pick<Storage, "getItem" | "setItem">;
 
 function storageKey(userId: string): string {
   return `finantutor.session.${userId}`;
@@ -17,12 +19,29 @@ function readOrCreate(userId: string): string {
   return created;
 }
 
-export function useSessionId(userId: string): string {
+export function startNewSession(
+  userId: string,
+  storage: SessionStorage = localStorage,
+  createId: () => string = () => crypto.randomUUID(),
+): string {
+  if (!userId) {
+    return "";
+  }
+  const sessionId = createId();
+  storage.setItem(storageKey(userId), sessionId);
+  return sessionId;
+}
+
+export function useSessionId(userId: string) {
   const [sessionId, setSessionId] = useState(() => readOrCreate(userId));
 
   useEffect(() => {
     setSessionId(readOrCreate(userId));
   }, [userId]);
 
-  return sessionId;
+  const startNewConversation = useCallback(() => {
+    setSessionId(startNewSession(userId));
+  }, [userId]);
+
+  return { sessionId, startNewConversation };
 }

@@ -6,12 +6,20 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from infrastructure.llm.limits import AgentTimeoutError, invoke_agent
+from infrastructure.llm.limits import AgentTimeoutError, TUTOR_LIMITS, invoke_agent
 
 
 @dataclass
 class _AgentResult:
     stop_reason: str = "end_turn"
+
+
+def test_tutor_limits_allow_search_and_synthesis() -> None:
+    assert TUTOR_LIMITS == {
+        "turns": 8,
+        "output_tokens": 6500,
+        "total_tokens": 26000,
+    }
 
 
 def test_invoke_agent_passes_limits_and_cancel_signal() -> None:

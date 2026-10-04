@@ -9,9 +9,10 @@ const AgentMarkdown = lazy(async () => {
 
 type Props = {
   sessionId: string;
+  onNewConversation: () => void;
 };
 
-export function ChatPanel({ sessionId }: Props) {
+export function ChatPanel({ sessionId, onNewConversation }: Props) {
   const {
     turns,
     draft,
@@ -38,6 +39,14 @@ export function ChatPanel({ sessionId }: Props) {
             Consulta los conceptos del curso y profundiza en los materiales.
           </p>
         </div>
+        <button
+          type="button"
+          className="ghost"
+          disabled={hydrating || pending}
+          onClick={onNewConversation}
+        >
+          Nueva conversación
+        </button>
       </header>
 
       <div className="thread" role="log" aria-live="polite">

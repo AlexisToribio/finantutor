@@ -10,8 +10,16 @@ export type ChatTurn = {
   text: string;
 };
 
-function turnFromMessage(message: ConversationMessage): ChatTurn {
-  return { role: message.role, text: message.status === "error" ? API_AGENT : message.body };
+export function agentReplyText(text: string): string {
+  return text.trim() || API_AGENT;
+}
+
+export function turnFromMessage(message: ConversationMessage): ChatTurn {
+  if (message.status === "error") {
+    return { role: message.role, text: API_AGENT };
+  }
+  const text = message.role === "agent" ? agentReplyText(message.body) : message.body;
+  return { role: message.role, text };
 }
 
 async function recoverStoredTurn(sessionId: string): Promise<ConversationHistory | null> {
@@ -85,7 +93,7 @@ export function useChatSession(sessionId: string) {
     setPending(true);
     try {
       const result = await sendChat(prompt, sessionId, setStatusText);
-      const reply = result.reply?.trim() || "Listo, sin texto de respuesta.";
+      const reply = agentReplyText(result.reply ?? "");
       setTurns((current) => [
         ...current,
         { role: "agent", text: reply },

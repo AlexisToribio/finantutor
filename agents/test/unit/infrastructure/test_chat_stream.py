@@ -50,9 +50,7 @@ async def test_heartbeat_while_the_agent_is_still_working() -> None:
         time.sleep(0.05)
         return {"reply": "listo", "session_id": "s"}
 
-    kinds = [
-        item["type"] async for item in chat_events(run, heartbeat_seconds=0.01)
-    ]
+    kinds = [item["type"] async for item in chat_events(run, heartbeat_seconds=0.01)]
     assert "heartbeat" in kinds
     assert kinds[-1] == "done"
 
@@ -65,6 +63,6 @@ async def test_exception_becomes_a_generic_error_event() -> None:
     events = [item async for item in chat_events(run, heartbeat_seconds=60)]
     assert events[-1] == {
         "type": "error",
-        "message": "El asistente no respondió. Inténtalo de nuevo.",
+        "message": "El tutor no respondió. Inténtalo de nuevo.",
     }
     assert "AccessDenied" not in events[-1]["message"]

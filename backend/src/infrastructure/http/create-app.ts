@@ -16,11 +16,14 @@ import { errorMessage, errorName, logger } from "../observability/logger.js";
 import { authTokenSource, requireAuth, userIdOf } from "./require-auth.js";
 
 function jsonMessage(message: StoredConversationMessage) {
+  const usesFallback =
+    message.status === "error" ||
+    (message.role === "agent" && !message.body.trim());
   return {
     id: message.id,
     role: message.role,
     event: message.event,
-    body: message.status === "error" ? AGENT_UNAVAILABLE : message.body,
+    body: usesFallback ? AGENT_UNAVAILABLE : message.body,
     created_at: message.createdAt,
     author: message.author,
     schema_version: message.schemaVersion,

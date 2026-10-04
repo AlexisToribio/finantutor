@@ -9,7 +9,7 @@ import { TabNav } from "./layout/TabNav";
 
 export default function App() {
   const { userId, email, signOut } = useAuth();
-  const sessionId = useSessionId(userId ?? "");
+  const { sessionId, startNewConversation } = useSessionId(userId ?? "");
   const location = useLocation();
   const tab = location.pathname.startsWith("/materiales") ? "materiales" : "tutor";
 
@@ -30,6 +30,7 @@ export default function App() {
           <ChatPanel
             key={sessionId}
             sessionId={sessionId}
+            onNewConversation={startNewConversation}
           />
         ) : null}
       </div>

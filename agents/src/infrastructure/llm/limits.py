@@ -11,7 +11,7 @@ from strands.types.agent import Limits
 from infrastructure.logger import logger
 
 TUTOR_LIMITS: Limits = {
-    "turns": 5,
+    "turns": 8,
     "output_tokens": 6500,
     "total_tokens": 26000,
 }
