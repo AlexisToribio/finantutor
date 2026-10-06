@@ -58,6 +58,7 @@ agentcore configure \
   --disable-memory \
   --non-interactive
 
+python3 "$YAML_TOOL" "$YAML" --set-lifecycle-defaults
 python3 "$YAML_TOOL" "$YAML" --relativize
 
 # configure preserves a stale agent_id. If that runtime is gone, drop it so deploy creates a new one.

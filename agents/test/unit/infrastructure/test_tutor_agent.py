@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock, patch
 
+from strands.agent.conversation_manager import SlidingWindowConversationManager
+
 from infrastructure.adapters.llm.tutor_agent import TutorAgent
 
 
@@ -44,3 +46,7 @@ def test_reply_applies_injected_limits_and_preserves_response_contract() -> None
     assert "Markdown compatible con GFM" in system_prompt
     assert "cada fila de una tabla en una línea independiente" in system_prompt
     assert "cada elemento de una lista en una línea independiente" in system_prompt
+    conversation_manager = agent_class.call_args.kwargs["conversation_manager"]
+    assert isinstance(conversation_manager, SlidingWindowConversationManager)
+    assert conversation_manager.window_size == 12
+    assert conversation_manager.per_turn is True

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
 
@@ -34,11 +35,21 @@ def clear_runtime_ids(path: Path) -> None:
     path.write_text(text)
 
 
+def set_lifecycle_defaults(path: Path) -> None:
+    """Declare the lifecycle values currently used by AgentCore defaults."""
+    text = path.read_text()
+    text = _set_key(text, "idle_runtime_session_timeout", "900")
+    text = _set_key(text, "max_lifetime", "28800")
+    path.write_text(text)
+
+
 def _relative_to_yaml_dir(raw: str, root: Path) -> str:
     if not raw or raw == "null":
         return raw
     candidate = Path(raw)
-    resolved = candidate.resolve() if candidate.is_absolute() else (root / candidate).resolve()
+    resolved = (
+        candidate.resolve() if candidate.is_absolute() else (root / candidate).resolve()
+    )
     try:
         rel = resolved.relative_to(root)
     except ValueError:
@@ -67,6 +78,7 @@ def main() -> int:
     group.add_argument("--get")
     group.add_argument("--clear-runtime", action="store_true")
     group.add_argument("--relativize", action="store_true")
+    group.add_argument("--set-lifecycle-defaults", action="store_true")
     group.add_argument("--write-tfvars")
     args = parser.parse_args()
     path = Path(args.yaml)
@@ -80,6 +92,9 @@ def main() -> int:
         return 0
     if args.relativize:
         relativize_paths(path)
+        return 0
+    if args.set_lifecycle_defaults:
+        set_lifecycle_defaults(path)
         return 0
     if args.write_tfvars:
         arn = yaml_value(path, "agent_arn")

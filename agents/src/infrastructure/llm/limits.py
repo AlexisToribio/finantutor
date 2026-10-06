@@ -13,15 +13,15 @@ from infrastructure.logger import logger
 TUTOR_LIMITS: Limits = {
     "turns": 8,
     "output_tokens": 6500,
-    "total_tokens": 26000,
+    "total_tokens": 48000,
 }
 TUTOR_TIMEOUT_SECONDS = 105
 
 _REQUEST_DEADLINE: contextvars.ContextVar[float | None] = contextvars.ContextVar(
     "agent_request_deadline", default=None
 )
-_REQUEST_CANCEL: contextvars.ContextVar[threading.Event | None] = contextvars.ContextVar(
-    "agent_request_cancel", default=None
+_REQUEST_CANCEL: contextvars.ContextVar[threading.Event | None] = (
+    contextvars.ContextVar("agent_request_cancel", default=None)
 )
 
 
@@ -37,6 +37,7 @@ def invoke_agent(
     limits: Limits,
     timeout_seconds: int,
 ) -> Any:
+    messages_before = len(agent.messages)
     now = time.monotonic()
     deadline = _REQUEST_DEADLINE.get()
     is_root_invocation = deadline is None
@@ -106,17 +107,44 @@ def invoke_agent(
         )
         raise AgentTimeoutError(f"{role} exceeded its {timeout_seconds}s timeout")
 
-    if result.stop_reason in {"limit_turns", "limit_total_tokens", "limit_output_tokens"}:
+    metric_fields = _invocation_metric_fields(agent, result, messages_before)
+    if result.stop_reason in {
+        "limit_turns",
+        "limit_total_tokens",
+        "limit_output_tokens",
+    }:
         logger.warning(
             "agent.invocation.budget_reached",
             role=role,
             stop_reason=result.stop_reason,
             limits=limits,
+            **metric_fields,
         )
     else:
         logger.info(
             "agent.invocation.completed",
             role=role,
             stop_reason=result.stop_reason,
+            **metric_fields,
         )
     return result
+
+
+def _invocation_metric_fields(
+    agent: Agent,
+    result: Any,
+    messages_before: int,
+) -> dict[str, int | None]:
+    metrics = getattr(result, "metrics", None)
+    invocation = getattr(metrics, "latest_agent_invocation", None)
+    usage = getattr(invocation, "usage", None) or {}
+    cycles = getattr(invocation, "cycles", None) or ()
+    return {
+        "input_tokens": usage.get("inputTokens") or 0,
+        "output_tokens": usage.get("outputTokens") or 0,
+        "total_tokens": usage.get("totalTokens") or 0,
+        "cycles": len(cycles),
+        "context_size": getattr(result, "context_size", None),
+        "messages_before": messages_before,
+        "messages_after": len(agent.messages),
+    }

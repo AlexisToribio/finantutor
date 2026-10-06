@@ -8,6 +8,7 @@ from bedrock_agentcore.memory.integrations.strands.session_manager import (
     AgentCoreMemorySessionManager,
 )
 from strands import Agent, tool
+from strands.agent.conversation_manager import SlidingWindowConversationManager
 from strands.models import BedrockModel
 from strands.types.agent import Limits
 
@@ -134,6 +135,10 @@ class TutorAgent(ChatAssistant):
             system_prompt=_SYSTEM_PROMPT,
             tools=[search_course_materials],
             session_manager=session_manager,
+            conversation_manager=SlidingWindowConversationManager(
+                window_size=12,
+                per_turn=True,
+            ),
             callback_handler=None,
             retry_strategy=None,
         )
