@@ -11,7 +11,7 @@ export const AUTH_THROTTLED =
   "Demasiados intentos. Espera un momento y vuelve a probar.";
 
 export const AUTH_PASSWORD_RULES =
-  "La contraseña necesita al menos 8 caracteres, con mayúscula, número y símbolo.";
+  "La contraseña necesita al menos 8 caracteres, con minúscula, mayúscula, número y símbolo.";
 
 export const AUTH_EXTRA_STEP =
   "Este acceso no se pudo completar. Avisa a quien te invitó.";

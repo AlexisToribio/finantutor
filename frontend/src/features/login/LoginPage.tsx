@@ -100,7 +100,7 @@ export function LoginPage() {
               />
               <p className="lede">
                 Te llegó una clave temporal al correo. Elige una permanente:
-                mayúscula, número y símbolo.
+                minúscula, mayúscula, número y símbolo.
               </p>
             </>
           ) : (
